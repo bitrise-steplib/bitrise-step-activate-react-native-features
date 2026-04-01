@@ -1,0 +1,302 @@
+package ccache
+
+import (
+	"bytes"
+	"context"
+	"encoding/hex"
+	"errors"
+	"fmt"
+	"io"
+	"time"
+
+	"github.com/bitrise-io/bitrise-build-cache-cli/internal/build_cache/kv"
+	"github.com/bitrise-io/bitrise-build-cache-cli/internal/ccache/protocol"
+	"github.com/bitrise-io/go-utils/v2/log"
+)
+
+type requestProcessor struct {
+	ctx         context.Context
+	client      Client
+	logger      log.Logger
+	reader      io.Reader
+	writer      io.Writer
+	ccSemaphore chan struct{}
+	config      Config
+}
+
+func newRequestProcessor(
+	conn io.ReadWriter,
+	config Config,
+	client Client,
+	logger log.Logger,
+) *requestProcessor {
+	// numChan := max(2, runtime.NumCPU()/6)
+	// ccLimit := numChan * runtime.NumCPU()
+	// logger.Infof("Setting up proxy with concurrency limit: %d", ccLimit)
+
+	return &requestProcessor{
+		ctx:         context.Background(),
+		config:      config,
+		client:      client,
+		logger:      logger,
+		reader:      conn,
+		writer:      conn,
+		ccSemaphore: make(chan struct{}, 1),
+	}
+}
+
+func (p *requestProcessor) notifyCcache(result processResult) processResult {
+	var err error
+
+	p.logger.TDebugf("%s - sending to ccache", result.Log())
+
+	switch result.Outcome {
+	case PROCESS_REQUEST_ERROR:
+		err = protocol.WriteErr(p.writer, result.Err.Error())
+
+	case PROCESS_REQUEST_MISS, PROCESS_REQUEST_PUSH_DISABLED:
+		err = protocol.WriteNoop(p.writer)
+
+	case PROCESS_REQUEST_OK:
+		err = p.writeOK(result)
+	}
+
+	if err != nil {
+		return processResult{
+			Outcome: PROCESS_REQUEST_ERROR,
+			Err:     fmt.Errorf("failed to write response: %w", err),
+		}
+	}
+
+	return result
+}
+
+func (p *requestProcessor) writeOK(result processResult) error {
+	if err := protocol.WriteOK(p.writer); err != nil {
+		return fmt.Errorf("%s Failed to write OK: %w", result.Prefix(), err)
+	}
+
+	if result.CallStats.method != "Get" {
+		p.logger.TDebugf("%s Successfully wrote OK response", result.Prefix())
+		return nil
+	}
+
+	if err := protocol.WriteValue(p.writer, result.Data); err != nil {
+		return fmt.Errorf("%s Failed to write value: %w", result.Prefix(), err)
+	}
+
+	p.logger.TDebugf("%s Successfully wrote OK response with %d bytes of data", result.Prefix(), len(result.Data))
+
+	return nil
+}
+
+func (p *requestProcessor) keyToPath(key []byte) string {
+	keyHex := hex.EncodeToString(key)
+
+	switch p.config.Layout {
+	case "bazel":
+		// Bazel format: ac/ + 64 hex digits, so pad shorter keys by repeating the key prefix to reach the expected SHA256 size.
+		const sha256HexSize = 64
+		if len(keyHex) >= sha256HexSize {
+			return fmt.Sprintf("ac/%s", keyHex[:sha256HexSize])
+		}
+		return fmt.Sprintf("ac/%s%s", keyHex, keyHex[:sha256HexSize-len(keyHex)])
+
+	case "subdirs":
+		if len(keyHex) < 2 {
+			return keyHex
+		}
+		return fmt.Sprintf("ccache/1-%s/%s", keyHex[:2], keyHex[2:])
+
+	default:
+		return keyHex
+	}
+}
+
+func (p *requestProcessor) logCallStats(result processResult) {
+	p.logger.TDebugf("%s took %s", result.Log(), time.Since(result.CallStats.start))
+}
+
+func (p *requestProcessor) handleGet() processResult {
+	statBuilder := newStatBuilder(CALL_METHOD_GET)
+
+	keyBytes, err := protocol.ReadKey(p.reader)
+	if err != nil {
+		return processResult{
+			Outcome:   PROCESS_REQUEST_ERROR,
+			Err:       fmt.Errorf("failed to read key: %w", err),
+			CallStats: statBuilder.build(),
+		}
+	}
+
+	key := p.keyToPath(keyBytes)
+	statBuilder.withKey(key)
+	p.logger.TDebugf("%s Called", statBuilder.Prefix())
+
+	buffer := bytes.NewBuffer(nil)
+	err = p.client.DownloadStream(p.ctx, buffer, key)
+
+	switch {
+	case err == nil:
+		// success
+	case errors.Is(err, kv.ErrCacheNotFound):
+		return p.notifyCcache(processResult{
+			Outcome:   PROCESS_REQUEST_MISS,
+			CallStats: statBuilder.build(),
+		})
+	default:
+		return p.notifyCcache(processResult{
+			Outcome:   PROCESS_REQUEST_ERROR,
+			Err:       fmt.Errorf("failed to download data: %w", err),
+			CallStats: statBuilder.build(),
+		})
+	}
+
+	size := int64(buffer.Len())
+	statBuilder.withDownloadBytes(size)
+
+	data, err := io.ReadAll(buffer)
+	if err != nil {
+		return p.notifyCcache(processResult{
+			Outcome:   PROCESS_REQUEST_ERROR,
+			Err:       fmt.Errorf("failed to read data: %w", err),
+			CallStats: statBuilder.build(),
+		})
+	}
+
+	return p.notifyCcache(processResult{
+		Outcome:   PROCESS_REQUEST_OK,
+		CallStats: statBuilder.build(),
+		Data:      data,
+	})
+}
+
+func (p *requestProcessor) handlePut() processResult {
+	statBuilder := newStatBuilder(CALL_METHOD_PUT)
+
+	keyBytes, err := protocol.ReadKey(p.reader)
+	if err != nil {
+		return processResult{
+			Outcome:   PROCESS_REQUEST_ERROR,
+			Err:       fmt.Errorf("failed to read key: %w", err),
+			CallStats: statBuilder.build(),
+		}
+	}
+	key := p.keyToPath(keyBytes)
+	statBuilder.withKey(key)
+
+	_, err = protocol.ReadByte(p.reader)
+	if err != nil {
+		return processResult{
+			Outcome:   PROCESS_REQUEST_ERROR,
+			Err:       fmt.Errorf("failed to read flags: %w", err),
+			CallStats: statBuilder.build(),
+		}
+	}
+
+	value, err := protocol.ReadValue(p.reader)
+	if err != nil {
+		return processResult{
+			Outcome:   PROCESS_REQUEST_ERROR,
+			Err:       fmt.Errorf("failed to read value: %w", err),
+			CallStats: statBuilder.build(),
+		}
+	}
+
+	if !p.config.PushEnabled {
+		return p.notifyCcache(processResult{
+			Outcome:   PROCESS_REQUEST_PUSH_DISABLED,
+			CallStats: statBuilder.build(),
+		})
+	}
+
+	size := int64(len(value))
+	statBuilder.withUploadBytes(size)
+	p.logger.TDebugf("%s Called (%d bytes)", statBuilder.Prefix(), size)
+
+	if err = p.client.UploadStreamToBuildCache(p.ctx, bytes.NewReader(value), key, size); err != nil {
+		return p.notifyCcache(processResult{
+			Outcome:   PROCESS_REQUEST_ERROR,
+			Err:       fmt.Errorf("failed to upload data: %w", err),
+			CallStats: statBuilder.build(),
+		})
+	}
+
+	return p.notifyCcache(processResult{
+		Outcome:   PROCESS_REQUEST_OK,
+		CallStats: statBuilder.build(),
+	})
+}
+
+func (p *requestProcessor) handleRemove() processResult {
+	statBuilder := newStatBuilder(CALL_METHOD_REMOVE)
+	keyBytes, err := protocol.ReadKey(p.reader)
+	if err != nil {
+		return processResult{
+			Outcome: PROCESS_REQUEST_ERROR,
+			Err:     err,
+		}
+	}
+
+	key := p.keyToPath(keyBytes)
+	statBuilder.withKey(key)
+	p.logger.TDebugf("%s Called", statBuilder.Prefix())
+
+	// We handle removal on the storage helper level by keeping track of keys.
+	// See ipc_server.go
+	return p.notifyCcache(processResult{
+		Outcome:   PROCESS_REQUEST_OK,
+		CallStats: statBuilder.build(),
+	})
+}
+
+func (p *requestProcessor) handleStop() processResult {
+	statBuilder := newStatBuilder(CALL_METHOD_STOP)
+	p.logger.TDebugf("%s Called", statBuilder.Prefix())
+	return processResult{
+		Outcome:   PROCESS_REQUEST_SHOULD_STOP,
+		CallStats: statBuilder.build(),
+	}
+}
+
+func (p *requestProcessor) processRequest() processResult {
+	reqType, err := protocol.ReadRequest(p.reader)
+	if err != nil {
+		return processResult{
+			Outcome: PROCESS_REQUEST_ERROR,
+			Err:     err,
+		}
+	}
+
+	p.ccSemaphore <- struct{}{}
+	defer func() { <-p.ccSemaphore }()
+
+	var result processResult
+	defer func() { p.logCallStats(result) }()
+
+	switch reqType {
+	case protocol.RequestGet:
+		result = p.handleGet()
+		return result
+
+	case protocol.RequestPut:
+		result = p.handlePut()
+		return result
+
+	case protocol.RequestRemove:
+		result = p.handleRemove()
+		return result
+
+	case protocol.RequestStop:
+		result = p.handleStop()
+		return result
+
+	default:
+		p.logger.TDebugf("Unknown request type: 0x%02x", reqType)
+		result = processResult{
+			Outcome: PROCESS_REQUEST_ERROR,
+			Err:     fmt.Errorf("unknown request type: 0x%02x", reqType),
+		}
+		return result
+	}
+}
