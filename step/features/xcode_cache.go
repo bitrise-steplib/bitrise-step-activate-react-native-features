@@ -1,7 +1,6 @@
 package features
 
 import (
-	"github.com/bitrise-io/go-steputils/v2/stepconf"
 	"github.com/bitrise-io/go-utils/v2/log"
 )
 
@@ -13,7 +12,7 @@ type XcodeCacheInput struct {
 
 type XcodeCache struct{}
 
-func XcodeCacheFeature(inputParser stepconf.InputParser, logger log.Logger) *XcodeCache {
+func XcodeCacheFeature(inputParser InputParser, logger log.Logger) *XcodeCache {
 	var input XcodeCacheInput
 	if err := inputParser.Parse(&input); err != nil {
 		return nil

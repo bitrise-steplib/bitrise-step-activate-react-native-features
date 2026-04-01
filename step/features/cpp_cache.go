@@ -1,7 +1,6 @@
 package features
 
 import (
-	"github.com/bitrise-io/go-steputils/v2/stepconf"
 	"github.com/bitrise-io/go-utils/v2/log"
 )
 
@@ -13,7 +12,7 @@ type CPPCacheInput struct {
 
 type CPPCache struct{}
 
-func CPPCacheFeature(inputParser stepconf.InputParser, logger log.Logger) *CPPCache {
+func CPPCacheFeature(inputParser InputParser, logger log.Logger) *CPPCache {
 	var input CPPCacheInput
 	if err := inputParser.Parse(&input); err != nil {
 		return nil

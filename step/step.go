@@ -9,6 +9,7 @@ import (
 	"github.com/bitrise-steplib/bitrise-step-activate-react-native-features/step/features"
 )
 
+
 const (
 	FailedToParseInputsMsg          = "failed to parse inputs"
 	NoFeaturesEnabledMsg            = "No features enabled"
@@ -22,14 +23,14 @@ type Input struct {
 
 type Step struct {
 	logger      log.Logger
-	inputParser stepconf.InputParser
+	inputParser InputParser
 	annotator   func(annotation service.Annotation) error
 	command     Command
 }
 
 func New(
 	logger log.Logger,
-	inputParser stepconf.InputParser,
+	inputParser InputParser,
 	annotator func(annotation service.Annotation) error,
 	command Command,
 ) Step {

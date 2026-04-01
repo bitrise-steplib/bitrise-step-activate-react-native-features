@@ -1,7 +1,6 @@
 package features
 
 import (
-	"github.com/bitrise-io/go-steputils/v2/stepconf"
 	"github.com/bitrise-io/go-utils/v2/log"
 )
 
@@ -13,7 +12,7 @@ type GradleCacheInput struct {
 
 type GradleCache struct{}
 
-func GradleCacheFeature(inputParser stepconf.InputParser, logger log.Logger) *GradleCache {
+func GradleCacheFeature(inputParser InputParser, logger log.Logger) *GradleCache {
 	var input GradleCacheInput
 	if err := inputParser.Parse(&input); err != nil {
 		return nil

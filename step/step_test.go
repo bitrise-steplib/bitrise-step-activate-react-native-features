@@ -4,9 +4,10 @@ import (
 	"testing"
 
 	"github.com/bitrise-io/bitrise-plugins-annotations/service"
-	"github.com/bitrise-io/go-steputils/v2/stepconf"
 	utilsMocks "github.com/bitrise-io/go-utils/v2/mocks"
 	"github.com/bitrise-steplib/bitrise-step-activate-react-native-features/step"
+	"github.com/bitrise-steplib/bitrise-step-activate-react-native-features/step/features"
+	"github.com/bitrise-steplib/bitrise-step-activate-react-native-features/step/mocks"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 )
@@ -19,19 +20,29 @@ func Test_Step(t *testing.T) {
 		logger.On("Debugf", mock.Anything, mock.Anything).Return()
 		logger.On("Infof", step.ReactNativeFeaturesActivatedMsg).Return().Once()
 
-		envRepo := NewMockEnvRepo()
-		envRepo.Set("cpp_cache_enabled", "true")    //nolint: errcheck
-		envRepo.Set("xcode_cache_enabled", "true")  //nolint: errcheck
-		envRepo.Set("gradle_cache_enabled", "true") //nolint: errcheck
-		envRepo.Set("verbose", "true")              //nolint: errcheck
+		mockParser := mocks.NewMockInputParser(t)
+		mockParser.On("Parse", mock.Anything).Run(func(args mock.Arguments) {
+			switch v := args.Get(0).(type) {
+			case *step.Input:
+				v.Verbose = true
+			case *features.CPPCacheInput:
+				v.CPPCacheEnabled = true
+			case *features.XcodeCacheInput:
+				v.XcodeCacheEnabled = true
+			case *features.GradleCacheInput:
+				v.GradleCacheEnabled = true
+			}
+		}).Return(nil)
 
-		command := &MockCommand{}
+		mockCmd := mocks.NewMockCommand(t)
+		mockCmd.On("SetArgs", mock.Anything).Return()
+		mockCmd.On("Execute").Return(nil)
 
 		sut := step.New(
 			logger,
-			stepconf.NewInputParser(envRepo),
+			mockParser,
 			func(annotation service.Annotation) error { return nil },
-			command,
+			mockCmd,
 		)
 
 		err := sut.Run()
@@ -41,66 +52,69 @@ func Test_Step(t *testing.T) {
 
 	t.Run("Failed to parse input", func(t *testing.T) {
 		logger := &utilsMocks.Logger{}
-		command := &MockCommand{}
-		envRepo := NewMockEnvRepo()
+
+		mockParser := mocks.NewMockInputParser(t)
+		mockParser.On("Parse", mock.AnythingOfType("*step.Input")).Return(assert.AnError)
+
+		mockCmd := mocks.NewMockCommand(t)
 
 		sut := step.New(
 			logger,
-			stepconf.NewInputParser(envRepo),
+			mockParser,
 			func(annotation service.Annotation) error { return nil },
-			command,
+			mockCmd,
 		)
 
 		err := sut.Run()
 		assert.ErrorContains(t, err, step.FailedToParseInputsMsg)
-		assert.Equal(t, 0, command.Executed)
 	})
 
 	t.Run("No features enabled", func(t *testing.T) {
-		envRepo := NewMockEnvRepo()
-		envRepo.Set("verbose", "false") //nolint: errcheck
-		// cache feature inputs are not set, so all features return nil
-
 		logger := &utilsMocks.Logger{}
 		logger.On("EnableDebugLog", false).Return().Once()
 		logger.On("Println", mock.Anything).Return().Once()
 		logger.On("Debugf", mock.Anything, mock.Anything).Return()
 		logger.On("Infof", step.NoFeaturesEnabledMsg).Return().Once()
 
-		command := &MockCommand{}
+		mockParser := mocks.NewMockInputParser(t)
+		mockParser.On("Parse", mock.Anything).Return(nil)
+		// All feature inputs default to false (not enabled), so all features return nil
+
+		mockCmd := mocks.NewMockCommand(t)
 
 		sut := step.New(
 			logger,
-			stepconf.NewInputParser(envRepo),
+			mockParser,
 			func(annotation service.Annotation) error { return nil },
-			command,
+			mockCmd,
 		)
 
 		err := sut.Run()
 		assert.Nil(t, err)
-		assert.Equal(t, 0, command.Executed)
 	})
 
 	t.Run("Failed to activate", func(t *testing.T) {
-		envRepo := NewMockEnvRepo()
-		envRepo.Set("cpp_cache_enabled", "true") //nolint: errcheck
-		envRepo.Set("verbose", "false")          //nolint: errcheck
-
 		logger := &utilsMocks.Logger{}
 		logger.On("EnableDebugLog", false).Return().Once()
 		logger.On("Println", mock.Anything).Return().Once()
 		logger.On("Debugf", mock.Anything, mock.Anything).Return()
-		logger.On("Warnf", mock.Anything, mock.Anything).Return()
 
-		command := &MockCommand{
-			ExecutionError: assert.AnError,
-		}
+		mockParser := mocks.NewMockInputParser(t)
+		mockParser.On("Parse", mock.Anything).Run(func(args mock.Arguments) {
+			if v, ok := args.Get(0).(*features.CPPCacheInput); ok {
+				v.CPPCacheEnabled = true
+			}
+		}).Return(nil)
+
+		mockCmd := mocks.NewMockCommand(t)
+		mockCmd.On("SetArgs", mock.Anything).Return()
+		mockCmd.On("Execute").Return(assert.AnError)
 
 		sut := step.New(
 			logger,
-			stepconf.NewInputParser(envRepo),
+			mockParser,
 			func(annotation service.Annotation) error { return nil },
-			command,
+			mockCmd,
 		)
 
 		err := sut.Run()
