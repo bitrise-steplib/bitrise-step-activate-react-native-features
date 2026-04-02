@@ -8,7 +8,9 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/bitrise-io/bitrise-build-cache-cli/cmd/common"
+	configcommon "github.com/bitrise-io/bitrise-build-cache-cli/internal/config/common"
 	gradleconfig "github.com/bitrise-io/bitrise-build-cache-cli/internal/config/gradle"
+	"github.com/bitrise-io/bitrise-build-cache-cli/internal/consts"
 	"github.com/bitrise-io/bitrise-build-cache-cli/internal/utils"
 )
 
@@ -60,6 +62,7 @@ If the "# [start/end] generated-by-bitrise-build-cache" block is already present
 				)
 			},
 			gradleconfig.DefaultGradlePropertiesUpdater(),
+			activateGradleParams,
 		); err != nil {
 			return fmt.Errorf("activate plugins for Gradle: %w", err)
 		}
@@ -94,11 +97,15 @@ func ActivateGradleCmdFn(
 	logger log.Logger,
 	gradleHomePath string,
 	envProvider map[string]string,
-	templateInventoryProvider func(log.Logger, map[string]string, bool) (gradleconfig.TemplateInventory, error),
+	templateInventoryProvider func(log.Logger, map[string]string, bool, configcommon.BenchmarkPhaseProvider) (gradleconfig.TemplateInventory, error),
 	templateWriter func(gradleconfig.TemplateInventory, string) error,
 	updater gradleconfig.GradlePropertiesUpdater,
+	params gradleconfig.ActivateGradleParams,
 ) error {
-	templateInventory, err := templateInventoryProvider(logger, envProvider, common.IsDebugLogMode)
+	authConfig, _ := configcommon.ReadAuthConfigFromEnvironments(envProvider)
+	benchmarkClient := configcommon.NewBenchmarkPhaseClient(consts.BitriseWebsiteBaseURL, authConfig, logger)
+
+	templateInventory, err := templateInventoryProvider(logger, envProvider, common.IsDebugLogMode, benchmarkClient)
 	if err != nil {
 		return err
 	}
@@ -110,7 +117,7 @@ func ActivateGradleCmdFn(
 		return err
 	}
 
-	if err := updater.UpdateGradleProps(activateGradleParams, logger, gradleHomePath); err != nil {
+	if err := updater.UpdateGradleProps(params, logger, gradleHomePath); err != nil {
 		return fmt.Errorf(ErrFmtFailedToUpdateProps, err)
 	}
 

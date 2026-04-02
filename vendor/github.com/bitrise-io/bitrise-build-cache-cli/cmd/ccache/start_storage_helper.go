@@ -7,21 +7,25 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"time"
 
 	"github.com/bitrise-io/go-utils/v2/log"
 	"github.com/google/uuid"
 	"github.com/spf13/cobra"
 
 	"github.com/bitrise-io/bitrise-build-cache-cli/cmd/common"
+	"github.com/bitrise-io/bitrise-build-cache-cli/internal/analytics/multiplatform"
 	"github.com/bitrise-io/bitrise-build-cache-cli/internal/ccache"
+	ccacheanalytics "github.com/bitrise-io/bitrise-build-cache-cli/internal/ccache/analytics"
 	ccacheconfig "github.com/bitrise-io/bitrise-build-cache-cli/internal/config/ccache"
 	configcommon "github.com/bitrise-io/bitrise-build-cache-cli/internal/config/common"
+	"github.com/bitrise-io/bitrise-build-cache-cli/internal/consts"
 	"github.com/bitrise-io/bitrise-build-cache-cli/internal/utils"
 	"github.com/bitrise-io/bitrise-build-cache-cli/internal/xcelerate/proxy"
 )
 
+//nolint:gochecknoglobals
 var (
-	//nolint:gochecknoglobals
 	initialInvocationID string
 
 	ccacheCmd = &cobra.Command{
@@ -36,7 +40,6 @@ var (
 		SilenceUsage: true,
 	}
 
-	//nolint:gochecknoglobals
 	startStorageHelperCmd = &cobra.Command{
 		Use:          "start",
 		Short:        "Start Xcelerate's ccache storage helper",
@@ -48,13 +51,15 @@ var (
 				return fmt.Errorf("read ccache config: %w", err)
 			}
 
+			envs := utils.AllEnvs()
 			kvClient, err := createKVClient(
 				cmd.Context(),
 				config,
-				utils.AllEnvs(),
+				envs,
 				initialInvocationID,
 				func(name string, v ...string) (string, error) {
-					output, err := exec.Command(name, v...).Output()
+					output, err := exec.CommandContext(cmd.Context(), name, v...).Output() //nolint:gosec
+
 					return string(output), err
 				},
 			)
@@ -62,11 +67,18 @@ var (
 				return fmt.Errorf("failed to create KV client: %w", err)
 			}
 
+			parentInvocationID := envs["BITRISE_INVOCATION_ID"]
+
 			ccacheStorageHelper, err := newCcacheStorageHelper(
-				cmd.Context(),
 				config,
+				configcommon.CacheConfigMetadata{
+					BitriseAppID:           envs["BITRISE_APP_SLUG"],
+					BitriseBuildID:         envs["BITRISE_BUILD_SLUG"],
+					BitriseStepExecutionID: envs["BITRISE_STEP_EXECUTION_ID"],
+				},
 				osProxy,
 				initialInvocationID,
+				parentInvocationID,
 				kvClient,
 			)
 			if err != nil {
@@ -79,10 +91,32 @@ var (
 			}
 			cmd.SetErr(errWriter)
 
-			return ccacheStorageHelper.start()
+			return ccacheStorageHelper.start(cmd.Context())
 		},
 	}
 )
+
+// registerInvocationRelation sends a parent→child invocation relation to the analytics backend.
+// Errors are logged but do not fail the caller — relation registration is best-effort.
+func registerInvocationRelation(config ccacheconfig.Config, parentID, childID string, logger log.Logger) {
+	client, err := ccacheanalytics.NewClient(consts.CcacheAnalyticsServiceEndpoint, config.AuthConfig.TokenInGradleFormat(), logger)
+	if err != nil {
+		logger.TErrorf("Failed to create analytics client for invocation relation: %v", err)
+
+		return
+	}
+
+	rel := multiplatform.InvocationRelation{
+		ParentInvocationID: parentID,
+		ChildInvocationID:  childID,
+		InvocationDate:     time.Now(),
+		BuildTool:          "ccache",
+	}
+
+	if err := client.PutInvocationRelation(rel); err != nil {
+		logger.TErrorf("Failed to register invocation relation (parent=%s child=%s): %v", parentID, childID, err)
+	}
+}
 
 func init() {
 	startStorageHelperCmd.Flags().StringVar(
@@ -104,9 +138,9 @@ func createKVClient(
 	invocationID string,
 	commandFunc configcommon.CommandFunc,
 ) (proxy.Client, error) {
-	return common.CreateKVClient(ctx, common.CreateKVClientParams{
+	client, err := common.CreateKVClient(ctx, common.CreateKVClientParams{
 		CacheOperationID: uuid.New().String(),
-		ClientName:       common.ClientNameXcode,
+		ClientName:       common.ClientNameCcache,
 		AuthConfig:       config.AuthConfig,
 		Envs:             envs,
 		CommandFunc:      commandFunc,
@@ -115,10 +149,14 @@ func createKVClient(
 		InvocationID:     invocationID,
 		SkipCapabilities: false, // handled by the storage helper itself, no need for the client to fetch capabilities
 	})
+	if err != nil {
+		return nil, fmt.Errorf("create KV client: %w", err)
+	}
+
+	return client, nil
 }
 
 type ccacheStorageHelper struct {
-	ctx             context.Context
 	osProxy         utils.OsProxy
 	config          ccacheconfig.Config
 	logger          log.Logger
@@ -126,18 +164,18 @@ type ccacheStorageHelper struct {
 	server          *ccache.IpcServer
 
 	loggerFactory func(c *ccacheStorageHelper, invocationID string, verbose bool) (log.Logger, error)
-	start         func() error
+	start         func(ctx context.Context) error
 }
 
 func newCcacheStorageHelper(
-	ctx context.Context,
 	config ccacheconfig.Config,
+	metadata configcommon.CacheConfigMetadata,
 	osProxy utils.OsProxy,
 	invocationID string,
+	parentInvocationID string,
 	kvClient proxy.Client,
 ) (*ccacheStorageHelper, error) {
 	helper := &ccacheStorageHelper{
-		ctx:           ctx,
 		config:        config,
 		osProxy:       osProxy,
 		loggerFactory: defaultLoggerFactory,
@@ -155,21 +193,27 @@ func newCcacheStorageHelper(
 	logger.TInfof("Ccache storage helper")
 	logger.TInfof("socketPath: %s", config.IPCEndpoint)
 
+	// If a parent invocation ID is present (e.g. from BITRISE_INVOCATION_ID), register the
+	// initial storage-helper invocation as a child of that parent.
+	if parentInvocationID != "" {
+		registerInvocationRelation(config, parentInvocationID, invocationID, logger)
+	}
+
+	onChildFn := func(_, parentID, childID string, _, _ int64) {
+		registerInvocationRelation(config, parentID, childID, logger)
+	}
+
 	helper.server, err = ccache.NewServer(
-		ctx,
-		ccache.Config{
-			LogFile:     config.LogFile,
-			ErrLogFile:  config.ErrLogFile,
-			IPCEndpoint: config.IPCEndpoint,
-			IdleTimeout: config.IdleTimeout,
-			Layout:      config.Layout,
-			PushEnabled: config.PushEnabled,
-		},
+		config,
+		metadata,
 		kvClient,
 		helper.logger,
 		func(invocationID string) (log.Logger, error) {
 			return helper.loggerFactory(helper, invocationID, common.IsDebugLogMode)
 		},
+		invocationID,
+		onChildFn,
+		nil, // stats collected separately via collect-stats command
 	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create IPC server: %w", err)

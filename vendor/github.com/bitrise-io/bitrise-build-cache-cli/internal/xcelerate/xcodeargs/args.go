@@ -49,6 +49,7 @@ var actions = []string{
 	"-importLocalizations",
 	"-exportNotarizedApp",
 	"-resolvePackageDependencies",
+	"-create-xcframework",
 }
 
 type Default struct {
@@ -109,13 +110,13 @@ func (p Default) ShortCommand() string {
 	if len(nonCommands) == 0 {
 		return ""
 	}
-	for _, cmd := range nonCommands {
-		trimmed := strings.TrimSpace(cmd)
-		for _, action := range actions {
-			if trimmed == action {
-				p.logger.Debugf("Short command found: %s", cmd)
 
-				return trimmed
+	for _, action := range actions {
+		for _, cmd := range nonCommands {
+			if strings.TrimSpace(cmd) == action {
+				p.logger.Debugf("Short command found: %s", action)
+
+				return action
 			}
 		}
 	}

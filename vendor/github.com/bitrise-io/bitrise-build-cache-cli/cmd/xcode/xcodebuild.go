@@ -35,10 +35,13 @@ const (
 	pidFile      = "proxy.pid"
 	startedProxy = "Started xcelerate_proxy pid = %d"
 
-	MsgArgsPassedToXcodebuild = "Arguments passed to xcodebuild: %v"
-	MsgInvocationSuccess      = "Invocation succeeded ✅ after %s"
-	MsgInvocationFailed       = "Invocation failed ❌ after %s: %s"
-	MsgInvocationSaved        = "Invocation saved. Visit 👉 https://app.bitrise.io/build-cache/invocations/xcode/%s"
+	NoBitriseBuildCacheFlag     = "--no-bitrise-build-cache"
+	CreateXCFrameworkFlag       = "-create-xcframework"
+	MsgBuildCacheDisabledByFlag = "Build cache disabled by %s flag"
+	MsgArgsPassedToXcodebuild   = "Arguments passed to xcodebuild: %v"
+	MsgInvocationSuccess        = "Invocation succeeded ✅ after %s"
+	MsgInvocationFailed         = "Invocation failed ❌ after %s: %s"
+	MsgInvocationSaved          = "Invocation saved. Visit 👉 https://app.bitrise.io/build-cache/invocations/xcode/%s"
 
 	ErrExecutingXcode = "Error executing xcodebuild: %v"
 	ErrReadConfig     = "Error reading config: %v"
@@ -106,6 +109,25 @@ TBD`,
 		logOutput := wrapperLogWriter(logFile, logPath, silentLogging)
 		logger := log.NewLogger(log.WithPrefix("[Bitrise Analytics] "), log.WithOutput(logOutput))
 		cacheLogger := log.NewLogger(log.WithPrefix("[Bitrise Build Cache] "), log.WithOutput(logOutput))
+
+		// Check for --no-bitrise-build-cache flag: override config and filter it out
+		if slices.Contains(xcelerateParams.OrigArgs, NoBitriseBuildCacheFlag) {
+			xcelerateParams.OrigArgs = slices.DeleteFunc(xcelerateParams.OrigArgs, func(s string) bool {
+				return s == NoBitriseBuildCacheFlag
+			})
+			config.BuildCacheEnabled = false
+			if !silentLogging {
+				logger.TInfof(MsgBuildCacheDisabledByFlag, NoBitriseBuildCacheFlag)
+			}
+		}
+
+		// Automatically disable cache for -create-xcframework as it's incompatible
+		if slices.Contains(xcelerateParams.OrigArgs, CreateXCFrameworkFlag) {
+			config.BuildCacheEnabled = false
+			if !silentLogging {
+				logger.TInfof(MsgBuildCacheDisabledByFlag, CreateXCFrameworkFlag)
+			}
+		}
 
 		xcodeArgs := xcodeargs.NewDefault(
 			cobraCmd,
@@ -269,6 +291,8 @@ func XcodebuildCmdFn(
 		return runStats
 	}
 
+	metadata.BenchmarkPhase = resolveBenchmarkPhase(logger)
+
 	inv := analytics.NewInvocation(analytics.InvocationRunStats{
 		InvocationDate:   runStats.StartTime,
 		InvocationID:     invocationID,
@@ -353,6 +377,25 @@ func getHitRateFromSessionAndRunStats(ctx context.Context,
 	}
 
 	return hitRate
+}
+
+// resolveBenchmarkPhase reads the benchmark phase from:
+// 1. BITRISE_BUILD_CACHE_BENCHMARK_PHASE env var (set during activation)
+// 2. ~/.local/state/xcelerate/benchmark/benchmark-phase.json (file fallback)
+func resolveBenchmarkPhase(logger log.Logger) string {
+	if phase := os.Getenv("BITRISE_BUILD_CACHE_BENCHMARK_PHASE"); phase != "" {
+		logger.Debugf("Benchmark phase from env: %s", phase)
+
+		return phase
+	}
+
+	if phase := common.ReadBenchmarkPhaseFile(logger); phase != "" {
+		logger.Debugf("Benchmark phase from file: %s", phase)
+
+		return phase
+	}
+
+	return ""
 }
 
 func shouldSaveInvocation(xcodeArgs xcodeargs.XcodeArgs) bool {

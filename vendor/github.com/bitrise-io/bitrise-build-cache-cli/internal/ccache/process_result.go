@@ -7,16 +7,17 @@ type processResultOutcome int32
 const (
 	PROCESS_REQUEST_OK            processResultOutcome = 0
 	PROCESS_REQUEST_MISS          processResultOutcome = 1
-	PROCESS_REQUEST_SHOULD_STOP   processResultOutcome = 2
 	PROCESS_REQUEST_ERROR         processResultOutcome = 3
 	PROCESS_REQUEST_PUSH_DISABLED processResultOutcome = 4
 )
 
 type processResult struct {
-	Err       error
-	Data      []byte
-	CallStats callStats
-	Outcome   processResultOutcome
+	Err                error
+	Data               []byte
+	CallStats          callStats
+	Outcome            processResultOutcome
+	InvocationParentID string
+	InvocationChildID  string
 }
 
 func (result processResult) OutcomeString() string {
@@ -25,8 +26,6 @@ func (result processResult) OutcomeString() string {
 		return "OK"
 	case PROCESS_REQUEST_MISS:
 		return "MISS"
-	case PROCESS_REQUEST_SHOULD_STOP:
-		return "SHOULD_STOP"
 	case PROCESS_REQUEST_ERROR:
 		return fmt.Sprintf("ERROR: %v", result.Err)
 	case PROCESS_REQUEST_PUSH_DISABLED:

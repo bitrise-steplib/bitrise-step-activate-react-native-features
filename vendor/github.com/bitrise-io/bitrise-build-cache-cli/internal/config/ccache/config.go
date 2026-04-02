@@ -2,7 +2,6 @@ package ccache
 
 import (
 	"fmt"
-	"os"
 	"path/filepath"
 	"time"
 
@@ -16,10 +15,9 @@ const (
 	ccachePath       = ".bitrise/cache/ccache/"
 	ccacheConfigFile = "config.json"
 
-	defaultLogFile        = "ccache-%s.log"
-	defaultErrLogFile     = "ccache-err.log"
-	defaultIdleTimeout    = 900
-	defaultLayout         = "flat"
+	defaultLogFile            = "ccache-%s.log"
+	defaultErrLogFile         = "ccache-err.log"
+	defaultIdleTimeout        = "15m"
 	defaultCRSHDataTimeout    = "2s"
 	defaultCRSHRequestTimeout = "20s"
 
@@ -44,7 +42,6 @@ type Config struct {
 	ErrLogFile         string                 `json:"errLogFile,omitempty"`
 	IPCEndpoint        string                 `json:"ipcEndpoint,omitempty"`
 	IdleTimeout        time.Duration          `json:"idleTimeout,omitempty"`
-	Layout             string                 `json:"layout,omitempty"`
 	PushEnabled        bool                   `json:"pushEnabled"`
 	Enabled            bool                   `json:"enabled"`
 	BuildCacheEndpoint string                 `json:"buildCacheEndpoint,omitempty"`
@@ -95,14 +92,14 @@ func NewConfig(envs map[string]string, osProxy utils.OsProxy, params Params) (Co
 	}
 
 	buildCacheEndpoint := common.SelectCacheEndpointURL(params.BuildCacheEndpoint, envs)
+	idleTimeout, _ := time.ParseDuration(defaultIdleTimeout)
 
 	return Config{
 		AuthConfig:         authConfig,
 		IPCEndpoint:        ipcEndpoint,
 		LogFile:            defaultLogFile,
 		ErrLogFile:         defaultErrLogFile,
-		IdleTimeout:        defaultIdleTimeout,
-		Layout:             defaultLayout,
+		IdleTimeout:        idleTimeout,
 		PushEnabled:        params.PushEnabled,
 		Enabled:            true,
 		BuildCacheEndpoint: buildCacheEndpoint,
@@ -142,7 +139,7 @@ func (config Config) Save(logger log.Logger, osProxy utils.OsProxy, encoderFacto
 func ReadConfig(osProxy utils.OsProxy, decoderFactory utils.DecoderFactory) (Config, error) {
 	configFilePath := PathFor(osProxy, ccacheConfigFile)
 
-	f, err := os.OpenFile(configFilePath, 0, 0)
+	f, err := osProxy.OpenFile(configFilePath, 0, 0)
 	if err != nil {
 		return Config{}, fmt.Errorf(ErrFmtOpenConfigFile, configFilePath, err)
 	}

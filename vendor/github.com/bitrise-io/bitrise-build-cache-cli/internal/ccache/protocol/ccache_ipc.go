@@ -2,6 +2,7 @@ package protocol
 
 import (
 	"encoding/binary"
+	"fmt"
 	"io"
 )
 
@@ -9,10 +10,12 @@ const (
 	ProtocolVersion = 0x01
 	Cap0            = 0x00 // get/put/remove/stop operations
 
-	RequestGet    = 0x00
-	RequestPut    = 0x01
-	RequestRemove = 0x02
-	RequestStop   = 0x03
+	RequestGet              = 0x00
+	RequestPut              = 0x01
+	RequestRemove           = 0x02
+	RequestStop             = 0x03
+	RequestSetInvocationID  = 0xB1
+	RequestGetSessionStats  = 0xB2
 
 	ResponseOK   = 0x00
 	ResponseNoop = 0x01
@@ -20,6 +23,29 @@ const (
 
 	PutFlagOverwrite = 0x01
 )
+
+func ReadGreeting(r io.Reader) error {
+	version, err := ReadByte(r)
+	if err != nil {
+		return fmt.Errorf("read protocol version: %w", err)
+	}
+	if version != ProtocolVersion {
+		return fmt.Errorf("unsupported protocol version: 0x%02x", version)
+	}
+
+	ncaps, err := ReadByte(r)
+	if err != nil {
+		return fmt.Errorf("read capabilities count: %w", err)
+	}
+
+	for i := 0; i < int(ncaps); i++ {
+		if _, err := ReadByte(r); err != nil {
+			return fmt.Errorf("read capability: %w", err)
+		}
+	}
+
+	return nil
+}
 
 func WriteGreeting(w io.Writer) error {
 	if err := WriteByte(w, ProtocolVersion); err != nil {
@@ -121,4 +147,63 @@ func WriteMsg(w io.Writer, msg string) error {
 	}
 	_, err := w.Write([]byte(msg))
 	return err
+}
+
+func ReadMsg(r io.Reader) (string, error) {
+	msgLen, err := ReadByte(r)
+	if err != nil {
+		return "", err
+	}
+	msg := make([]byte, msgLen)
+	if _, err := io.ReadFull(r, msg); err != nil {
+		return "", err
+	}
+	return string(msg), nil
+}
+
+func WriteSetInvocationID(w io.Writer, parentID, childID string) error {
+	if err := WriteByte(w, RequestSetInvocationID); err != nil {
+		return err
+	}
+	if err := WriteMsg(w, parentID); err != nil {
+		return err
+	}
+
+	return WriteMsg(w, childID)
+}
+
+func WriteSessionStats(w io.Writer, downloadBytes, uploadBytes int64) error {
+	if err := WriteByte(w, ResponseOK); err != nil {
+		return err
+	}
+	if err := binary.Write(w, binary.NativeEndian, downloadBytes); err != nil {
+		return err
+	}
+
+	return binary.Write(w, binary.NativeEndian, uploadBytes)
+}
+
+func ReadSessionStats(r io.Reader) (downloadBytes, uploadBytes int64, err error) {
+	if err := binary.Read(r, binary.NativeEndian, &downloadBytes); err != nil {
+		return 0, 0, fmt.Errorf("read download bytes: %w", err)
+	}
+	if err := binary.Read(r, binary.NativeEndian, &uploadBytes); err != nil {
+		return 0, 0, fmt.Errorf("read upload bytes: %w", err)
+	}
+
+	return downloadBytes, uploadBytes, nil
+}
+
+func ReadSetInvocationID(r io.Reader) (parentID, childID string, err error) {
+	parentID, err = ReadMsg(r)
+	if err != nil {
+		return "", "", err
+	}
+
+	childID, err = ReadMsg(r)
+	if err != nil {
+		return "", "", err
+	}
+
+	return parentID, childID, nil
 }
