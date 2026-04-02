@@ -1,6 +1,6 @@
-structname: "Mock{{.InterfaceName}}"
+structname: Mock{{.InterfaceName}}
 dir: "{{.InterfaceDir}}/mocks"
-filename: "mock_{{.InterfaceName}}.go"
+filename: mock_{{.InterfaceName}}.go
 pkgname: mocks
 packages:
   github.com/bitrise-steplib/bitrise-step-activate-react-native-features/step:
