@@ -1,8 +1,5 @@
 package features
 
-import (
-	"github.com/bitrise-io/go-utils/v2/log"
-)
 
 const GradleCacheEnabledMsg = "Gradle cache feature is enabled"
 
@@ -12,7 +9,7 @@ type GradleCacheInput struct {
 
 type GradleCache struct{}
 
-func GradleCacheFeature(inputParser InputParser, logger log.Logger) *GradleCache {
+func GradleCacheFeature(inputParser InputParser, logger Logger) *GradleCache {
 	var input GradleCacheInput
 	if err := inputParser.Parse(&input); err != nil {
 		return nil

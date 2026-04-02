@@ -5,7 +5,6 @@ import (
 
 	"github.com/bitrise-io/bitrise-plugins-annotations/service"
 	"github.com/bitrise-io/go-steputils/v2/stepconf"
-	"github.com/bitrise-io/go-utils/v2/log"
 	"github.com/bitrise-steplib/bitrise-step-activate-react-native-features/step/features"
 )
 
@@ -22,14 +21,14 @@ type Input struct {
 }
 
 type Step struct {
-	logger      log.Logger
+	logger      Logger
 	inputParser InputParser
 	annotator   func(annotation service.Annotation) error
 	command     Command
 }
 
 func New(
-	logger log.Logger,
+	logger Logger,
 	inputParser InputParser,
 	annotator func(annotation service.Annotation) error,
 	command Command,

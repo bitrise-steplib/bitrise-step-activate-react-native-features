@@ -7,6 +7,8 @@ packages:
     interfaces:
       Command:
       InputParser:
+      Logger:
   github.com/bitrise-steplib/bitrise-step-activate-react-native-features/step/features:
     interfaces:
       InputParser:
+      Logger:

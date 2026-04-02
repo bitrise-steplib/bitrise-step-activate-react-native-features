@@ -1,8 +1,5 @@
 package features
 
-import (
-	"github.com/bitrise-io/go-utils/v2/log"
-)
 
 const XcodeCacheEnabledMsg = "Xcode cache feature is enabled"
 
@@ -12,7 +9,7 @@ type XcodeCacheInput struct {
 
 type XcodeCache struct{}
 
-func XcodeCacheFeature(inputParser InputParser, logger log.Logger) *XcodeCache {
+func XcodeCacheFeature(inputParser InputParser, logger Logger) *XcodeCache {
 	var input XcodeCacheInput
 	if err := inputParser.Parse(&input); err != nil {
 		return nil

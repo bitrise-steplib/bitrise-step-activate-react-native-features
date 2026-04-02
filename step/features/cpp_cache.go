@@ -1,8 +1,5 @@
 package features
 
-import (
-	"github.com/bitrise-io/go-utils/v2/log"
-)
 
 const CPPCacheEnabledMsg = "C++ cache feature is enabled"
 
@@ -12,7 +9,7 @@ type CPPCacheInput struct {
 
 type CPPCache struct{}
 
-func CPPCacheFeature(inputParser InputParser, logger log.Logger) *CPPCache {
+func CPPCacheFeature(inputParser InputParser, logger Logger) *CPPCache {
 	var input CPPCacheInput
 	if err := inputParser.Parse(&input); err != nil {
 		return nil

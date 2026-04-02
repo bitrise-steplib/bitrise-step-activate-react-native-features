@@ -4,7 +4,6 @@ import (
 	"testing"
 
 	"github.com/bitrise-io/bitrise-plugins-annotations/service"
-	utilsMocks "github.com/bitrise-io/go-utils/v2/mocks"
 	"github.com/bitrise-steplib/bitrise-step-activate-react-native-features/step"
 	"github.com/bitrise-steplib/bitrise-step-activate-react-native-features/step/features"
 	"github.com/bitrise-steplib/bitrise-step-activate-react-native-features/step/mocks"
@@ -14,11 +13,11 @@ import (
 
 func Test_Step(t *testing.T) {
 	t.Run("Happy path", func(t *testing.T) {
-		logger := &utilsMocks.Logger{}
-		logger.On("EnableDebugLog", true).Return().Once()
-		logger.On("Println", mock.Anything).Return().Once()
-		logger.On("Debugf", mock.Anything, mock.Anything).Return()
-		logger.On("Infof", step.ReactNativeFeaturesActivatedMsg).Return().Once()
+		mockLogger := mocks.NewMockLogger(t)
+		mockLogger.On("EnableDebugLog", true).Return().Once()
+		mockLogger.On("Println").Return().Once()
+		mockLogger.On("Debugf", mock.Anything, mock.Anything).Return()
+		mockLogger.On("Infof", step.ReactNativeFeaturesActivatedMsg).Return().Once()
 
 		mockParser := mocks.NewMockInputParser(t)
 		mockParser.On("Parse", mock.Anything).Run(func(args mock.Arguments) {
@@ -39,7 +38,7 @@ func Test_Step(t *testing.T) {
 		mockCmd.On("Execute").Return(nil)
 
 		sut := step.New(
-			logger,
+			mockLogger,
 			mockParser,
 			func(annotation service.Annotation) error { return nil },
 			mockCmd,
@@ -51,7 +50,7 @@ func Test_Step(t *testing.T) {
 	})
 
 	t.Run("Failed to parse input", func(t *testing.T) {
-		logger := &utilsMocks.Logger{}
+		mockLogger := mocks.NewMockLogger(t)
 
 		mockParser := mocks.NewMockInputParser(t)
 		mockParser.On("Parse", mock.AnythingOfType("*step.Input")).Return(assert.AnError)
@@ -59,7 +58,7 @@ func Test_Step(t *testing.T) {
 		mockCmd := mocks.NewMockCommand(t)
 
 		sut := step.New(
-			logger,
+			mockLogger,
 			mockParser,
 			func(annotation service.Annotation) error { return nil },
 			mockCmd,
@@ -70,11 +69,10 @@ func Test_Step(t *testing.T) {
 	})
 
 	t.Run("No features enabled", func(t *testing.T) {
-		logger := &utilsMocks.Logger{}
-		logger.On("EnableDebugLog", false).Return().Once()
-		logger.On("Println", mock.Anything).Return().Once()
-		logger.On("Debugf", mock.Anything, mock.Anything).Return()
-		logger.On("Infof", step.NoFeaturesEnabledMsg).Return().Once()
+		mockLogger := mocks.NewMockLogger(t)
+		mockLogger.On("EnableDebugLog", false).Return().Once()
+		mockLogger.On("Println").Return().Once()
+		mockLogger.On("Infof", step.NoFeaturesEnabledMsg).Return().Once()
 
 		mockParser := mocks.NewMockInputParser(t)
 		mockParser.On("Parse", mock.Anything).Return(nil)
@@ -83,7 +81,7 @@ func Test_Step(t *testing.T) {
 		mockCmd := mocks.NewMockCommand(t)
 
 		sut := step.New(
-			logger,
+			mockLogger,
 			mockParser,
 			func(annotation service.Annotation) error { return nil },
 			mockCmd,
@@ -94,10 +92,10 @@ func Test_Step(t *testing.T) {
 	})
 
 	t.Run("Failed to activate", func(t *testing.T) {
-		logger := &utilsMocks.Logger{}
-		logger.On("EnableDebugLog", false).Return().Once()
-		logger.On("Println", mock.Anything).Return().Once()
-		logger.On("Debugf", mock.Anything, mock.Anything).Return()
+		mockLogger := mocks.NewMockLogger(t)
+		mockLogger.On("EnableDebugLog", false).Return().Once()
+		mockLogger.On("Println").Return().Once()
+		mockLogger.On("Debugf", mock.Anything, mock.Anything).Return()
 
 		mockParser := mocks.NewMockInputParser(t)
 		mockParser.On("Parse", mock.Anything).Run(func(args mock.Arguments) {
@@ -111,7 +109,7 @@ func Test_Step(t *testing.T) {
 		mockCmd.On("Execute").Return(assert.AnError)
 
 		sut := step.New(
-			logger,
+			mockLogger,
 			mockParser,
 			func(annotation service.Annotation) error { return nil },
 			mockCmd,
