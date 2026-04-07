@@ -90,10 +90,6 @@ step_bundles:
   check:
     steps:
     - script:
-        title: Check if the step is working
+        title: Check config files and environment variables
         inputs:
-        - content: |-
-            #!/bin/bash
-            set -ex
-            # TODO: Add validation logic once activation is implemented
-            echo "Step executed successfully"
+        - content: bash $BITRISE_SOURCE_DIR/e2e/scripts/check.sh
