@@ -1,8 +1,15 @@
 # bitrise-step-activate-react-native-features
 
-A Bitrise step that activates Bitrise Build Cache for all build systems used in React Native projects: C++ via ccache, Xcode via Xcelerate, and Gradle.
+A Bitrise step that activates Bitrise Build Cache for React Native projects. It delegates to the CLI's unified `activate react-native` command, which handles Gradle, Xcode, and C++ (ccache) activation including background service startup.
 
-Follows the same feature-plugin pattern as `bitrise-step-activate-gradle-features`.
+## Architecture
+
+The step is a thin wrapper around `bitrise-build-cache-cli activate react-native`. It parses two user-facing inputs (`xcode_cache_enabled`, `gradle_cache_enabled`) and maps them to CLI flags:
+
+- `--gradle=false` / `--cpp=false` when Gradle is disabled (C++ follows Gradle since ccache handles native module compilation during Android builds)
+- `--xcode=false` when Xcode is disabled
+
+The CLI binary is embedded via Go module dependency — the step imports `cmd/reactnative` which registers the `activate react-native` Cobra subcommand, then calls `cli.RootCmd.SetArgs(...)` + `Execute()`.
 
 ## Development notes
 
@@ -18,9 +25,7 @@ The CI lint check diffs the committed README against a freshly generated one and
 
 ### Go version
 
-Keep the `go` directive in `go.mod` at `1.23` (with a `toolchain` line for the actual toolchain version). The CI runs `golangci-lint` which is built with go1.24 and will fail if the module targets a newer language version than the linter was compiled with.
-
-**Warning:** `go mod tidy` will reset the `go` directive back to the current toolchain version. After running `go mod tidy`, manually restore `go 1.23` + `toolchain go1.24.0`.
+The `go` directive in `go.mod` is `1.24`. This must match the toolchain used by golangci-lint in CI.
 
 ### Mock generation
 
@@ -39,3 +44,11 @@ bitrise run check
 ```
 
 Runs `golangci-lint` via the `steps-check` step.
+
+### E2E tests
+
+E2E workflows are in `e2e/bitrise.yml`. They run the step with various input combinations and verify config files and environment variables via `e2e/scripts/check.sh`.
+
+Key details:
+- The `setup` bundle cleans config artifacts (`~/.bitrise/cache/ccache/config.json`, `~/.bitrise-xcelerate/`, `~/.gradle/init.d/bitrise-build-cache.init.gradle.kts`) between workflow runs to prevent state leaking between tests.
+- `BITRISE_IO` is unset in the `run` bundle so the CLI does not detect a Bitrise CI provider — this prevents the benchmark phase API from overriding cache-enabled flags during E2E tests.
