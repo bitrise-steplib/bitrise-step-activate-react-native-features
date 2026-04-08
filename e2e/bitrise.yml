@@ -61,6 +61,10 @@ step_bundles:
         - branch: $BRANCH
 
   run:
+    envs:
+    # Unset BITRISE_BUILD_SLUG so the CLI does not detect a Bitrise CI provider.
+    # This prevents the benchmark phase API from overriding cache-enabled flags during E2E tests.
+    - BITRISE_BUILD_SLUG: ""
     steps:
     - path::./:
         title: Execute step
