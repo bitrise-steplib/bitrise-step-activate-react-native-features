@@ -29,7 +29,6 @@ You can also run this step directly with [Bitrise CLI](https://github.com/bitris
 
 | Key | Description | Flags | Default |
 | --- | --- | --- | --- |
-| `cpp_cache_enabled` | Enables Bitrise Build Cache for C++. When enabled, activates ccache and starts the ccache storage helper in the background. | required | `true` |
 | `xcode_cache_enabled` | Enables Bitrise Build Cache for Xcode. When enabled, activates Xcelerate and starts the Xcelerate proxy in the background. | required | `true` |
 | `gradle_cache_enabled` | Enables Bitrise Build Cache for Gradle. When enabled, activates Gradle cache with analytics and remote cache plugins. | required | `true` |
 | `verbose` | Enable logging additional information for troubleshooting | required | `false` |
