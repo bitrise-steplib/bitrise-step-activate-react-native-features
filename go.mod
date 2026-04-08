@@ -3,7 +3,7 @@ module github.com/bitrise-steplib/bitrise-step-activate-react-native-features
 go 1.24.0
 
 require (
-	github.com/bitrise-io/bitrise-build-cache-cli v1.5.4-0.20260402085153-284d36755920
+	github.com/bitrise-io/bitrise-build-cache-cli v1.5.6-0.20260407175812-4c9a114aa4bc
 	github.com/bitrise-io/bitrise-plugins-annotations v0.0.0-20250424075238-a72af2229551
 	github.com/bitrise-io/go-steputils/v2 v2.0.0-alpha.49
 	github.com/bitrise-io/go-utils/v2 v2.0.0-alpha.34

@@ -28,21 +28,6 @@ toolkit:
 
 inputs:
 # -------------------------------------------------------------------------------
-# C++ cache
-# -------------------------------------------------------------------------------
-- cpp_cache_enabled: "true"
-  opts:
-    category: c++ cache
-    title: Enable C++ cache
-    summary: Enables Bitrise Build Cache for C++ using ccache
-    is_required: true
-    value_options:
-    - "true"
-    - "false"
-    description: |-
-      Enables Bitrise Build Cache for C++. When enabled, activates ccache and starts the ccache storage helper in the background.
-
-# -------------------------------------------------------------------------------
 # Xcode cache
 # -------------------------------------------------------------------------------
 - xcode_cache_enabled: "true"

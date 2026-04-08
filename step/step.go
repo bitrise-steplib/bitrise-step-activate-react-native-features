@@ -5,9 +5,7 @@ import (
 
 	"github.com/bitrise-io/bitrise-plugins-annotations/service"
 	"github.com/bitrise-io/go-steputils/v2/stepconf"
-	"github.com/bitrise-steplib/bitrise-step-activate-react-native-features/step/features"
 )
-
 
 const (
 	FailedToParseInputsMsg          = "failed to parse inputs"
@@ -17,7 +15,9 @@ const (
 )
 
 type Input struct {
-	Verbose bool `env:"verbose,required"`
+	Verbose            bool `env:"verbose,required"`
+	XcodeCacheEnabled  bool `env:"xcode_cache_enabled,required"`
+	GradleCacheEnabled bool `env:"gradle_cache_enabled,required"`
 }
 
 type Step struct {
@@ -48,75 +48,32 @@ func (step Step) Run() error {
 	}
 	step.logger.EnableDebugLog(input.Verbose)
 
-	collectedCacheFeatures := step.collectCacheFeatures()
-
-	var hasEnabledFeatures bool
-	for _, feature := range collectedCacheFeatures {
-		stepconf.Print(feature)
-		hasEnabledFeatures = true
-	}
-
 	stepconf.Print(input)
 	step.logger.Println()
 
-	if !hasEnabledFeatures {
+	if !input.XcodeCacheEnabled && !input.GradleCacheEnabled {
 		step.logger.Infof(NoFeaturesEnabledMsg)
+
 		return nil
 	}
 
-	if err := step.activate(input, collectedCacheFeatures); err != nil {
+	args := []string{"activate", "react-native"}
+	if !input.GradleCacheEnabled {
+		args = append(args, "--gradle=false", "--cpp=false")
+	}
+	if !input.XcodeCacheEnabled {
+		args = append(args, "--xcode=false")
+	}
+	if input.Verbose {
+		args = append(args, "--debug")
+	}
+
+	step.command.SetArgs(args)
+	if err := step.command.Execute(); err != nil {
 		return fmt.Errorf(FailedToActivateMsg+": %w", err)
 	}
 
 	step.logger.Infof(ReactNativeFeaturesActivatedMsg)
-
-	return nil
-}
-
-func (step Step) collectCacheFeatures() []CacheFeature {
-	collected := []CacheFeature{}
-
-	if f := features.CPPCacheFeature(step.inputParser, step.logger); f != nil {
-		collected = append(collected, f)
-	}
-	if f := features.XcodeCacheFeature(step.inputParser, step.logger); f != nil {
-		collected = append(collected, f)
-	}
-	if f := features.GradleCacheFeature(step.inputParser, step.logger); f != nil {
-		collected = append(collected, f)
-	}
-
-	return collected
-}
-
-func (step Step) activate(input Input, cacheFeatures []CacheFeature) error {
-	for _, feature := range cacheFeatures {
-		args := feature.ActivateArgs()
-		if input.Verbose {
-			args = append(args, "--debug")
-		}
-		step.command.SetArgs(args)
-		if err := step.command.Execute(); err != nil {
-			return err
-		}
-	}
-
-	for _, feature := range cacheFeatures {
-		serviceArgs := feature.ServiceArgs()
-		if serviceArgs == nil {
-			continue
-		}
-		args := serviceArgs
-		if input.Verbose {
-			args = append(args, "--debug")
-		}
-		go func() {
-			step.command.SetArgs(args)
-			if err := step.command.Execute(); err != nil {
-				step.logger.Warnf("background service stopped with error: %s", err)
-			}
-		}()
-	}
 
 	return nil
 }

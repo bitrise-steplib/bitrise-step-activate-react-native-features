@@ -3,10 +3,8 @@ package main
 import (
 	"os"
 
-	_ "github.com/bitrise-io/bitrise-build-cache-cli/cmd/ccache"
-	_ "github.com/bitrise-io/bitrise-build-cache-cli/cmd/gradle"
-	_ "github.com/bitrise-io/bitrise-build-cache-cli/cmd/xcode"
 	cli "github.com/bitrise-io/bitrise-build-cache-cli/cmd/common"
+	_ "github.com/bitrise-io/bitrise-build-cache-cli/cmd/reactnative"
 	"github.com/bitrise-io/bitrise-plugins-annotations/service"
 	"github.com/bitrise-io/go-steputils/v2/stepconf"
 	"github.com/bitrise-io/go-utils/v2/env"

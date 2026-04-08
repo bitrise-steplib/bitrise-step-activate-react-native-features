@@ -9,18 +9,6 @@ app:
 workflows:
   test_disable_all:
     envs:
-    - CPP_CACHE_ENABLED: "false"
-    - XCODE_CACHE_ENABLED: "false"
-    - GRADLE_CACHE_ENABLED: "false"
-    - VERBOSE: "true"
-    steps:
-    - bundle::setup: { }
-    - bundle::run: { }
-    - bundle::check: { }
-
-  test_cpp_cache:
-    envs:
-    - CPP_CACHE_ENABLED: "true"
     - XCODE_CACHE_ENABLED: "false"
     - GRADLE_CACHE_ENABLED: "false"
     - VERBOSE: "true"
@@ -31,7 +19,6 @@ workflows:
 
   test_xcode_cache:
     envs:
-    - CPP_CACHE_ENABLED: "false"
     - XCODE_CACHE_ENABLED: "true"
     - GRADLE_CACHE_ENABLED: "false"
     - VERBOSE: "true"
@@ -42,7 +29,6 @@ workflows:
 
   test_gradle_cache:
     envs:
-    - CPP_CACHE_ENABLED: "false"
     - XCODE_CACHE_ENABLED: "false"
     - GRADLE_CACHE_ENABLED: "true"
     - VERBOSE: "true"
@@ -53,7 +39,6 @@ workflows:
 
   test_enable_all:
     envs:
-    - CPP_CACHE_ENABLED: "true"
     - XCODE_CACHE_ENABLED: "true"
     - GRADLE_CACHE_ENABLED: "true"
     - VERBOSE: "true"
@@ -82,7 +67,6 @@ step_bundles:
         run_if: "true"
         is_skippable: false
         inputs:
-        - cpp_cache_enabled: $CPP_CACHE_ENABLED
         - xcode_cache_enabled: $XCODE_CACHE_ENABLED
         - gradle_cache_enabled: $GRADLE_CACHE_ENABLED
         - verbose: $VERBOSE

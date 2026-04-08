@@ -4,8 +4,8 @@ github.com/bazelbuild/remote-apis v0.0.0-20260331222004-becdd8f9ff81 h1:vAHLeMHi
 github.com/bazelbuild/remote-apis v0.0.0-20260331222004-becdd8f9ff81/go.mod h1:7Tyi5f5+hG+6LwC0X/G/EjCQS4ZYJUcpY0geSsU2NAw=
 github.com/beevik/etree v1.6.0 h1:u8Kwy8pp9D9XeITj2Z0XtA5qqZEmtJtuXZRQi+j03eE=
 github.com/beevik/etree v1.6.0/go.mod h1:bh4zJxiIr62SOf9pRzN7UUYaEDa9HEKafK25+sLc0Gc=
-github.com/bitrise-io/bitrise-build-cache-cli v1.5.4-0.20260402085153-284d36755920 h1:aSTSk7ePBiNaBgpMW4Jni+LPN1yP+5v6dmpSdQswYu8=
-github.com/bitrise-io/bitrise-build-cache-cli v1.5.4-0.20260402085153-284d36755920/go.mod h1:hATOMTNSoCEPZ215eBm7s7u4TSefR7ci47+zRdj+kwk=
+github.com/bitrise-io/bitrise-build-cache-cli v1.5.6-0.20260407175812-4c9a114aa4bc h1:p2qabgZ/Zy0a56QxiKf854FiOasXdfKOcGI1op6Bepw=
+github.com/bitrise-io/bitrise-build-cache-cli v1.5.6-0.20260407175812-4c9a114aa4bc/go.mod h1:IAf0z+qjb5UR0mkNUoGHmYz7JiplsdVyBTqE/+FVWe0=
 github.com/bitrise-io/bitrise-plugins-annotations v0.0.0-20250424075238-a72af2229551 h1:0oemhAZPFYob8VGgZt+PsSHGz/rDwEe7TcwnVYZP7tk=
 github.com/bitrise-io/bitrise-plugins-annotations v0.0.0-20250424075238-a72af2229551/go.mod h1:Jd/NQYOook7BPVTg9HGy5xWPrUu0MTQuT/v3r4mv2X8=
 github.com/bitrise-io/go-steputils/v2 v2.0.0-alpha.49 h1:2rGTx64qvdr6hseqMUwV3p1glEzrJ6lbTYxs5LfMEfU=

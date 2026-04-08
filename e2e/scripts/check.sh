@@ -63,8 +63,8 @@ assert_env_nonempty() {
   echo "✅ \$$var=$value"
 }
 
-# C++ cache checks
-if [ "$CPP_CACHE_ENABLED" = "true" ]; then
+# C++ cache checks (cpp is enabled whenever gradle is enabled)
+if [ "$GRADLE_CACHE_ENABLED" = "true" ]; then
   echo "--- C++ cache ---"
   assert_file_exists "$CCACHE_CONFIG"
   assert_json_field_nonempty "$CCACHE_CONFIG" ".ipcEndpoint"

@@ -5,36 +5,29 @@ import (
 
 	"github.com/bitrise-io/bitrise-plugins-annotations/service"
 	"github.com/bitrise-steplib/bitrise-step-activate-react-native-features/step"
-	"github.com/bitrise-steplib/bitrise-step-activate-react-native-features/step/features"
 	"github.com/bitrise-steplib/bitrise-step-activate-react-native-features/step/mocks"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 )
 
 func Test_Step(t *testing.T) {
-	t.Run("Happy path", func(t *testing.T) {
+	t.Run("All features enabled", func(t *testing.T) {
 		mockLogger := mocks.NewMockLogger(t)
 		mockLogger.On("EnableDebugLog", true).Return().Once()
 		mockLogger.On("Println").Return().Once()
-		mockLogger.On("Debugf", mock.Anything, mock.Anything).Return()
 		mockLogger.On("Infof", step.ReactNativeFeaturesActivatedMsg).Return().Once()
 
 		mockParser := mocks.NewMockInputParser(t)
 		mockParser.On("Parse", mock.Anything).Run(func(args mock.Arguments) {
-			switch v := args.Get(0).(type) {
-			case *step.Input:
+			if v, ok := args.Get(0).(*step.Input); ok {
 				v.Verbose = true
-			case *features.CPPCacheInput:
-				v.CPPCacheEnabled = true
-			case *features.XcodeCacheInput:
 				v.XcodeCacheEnabled = true
-			case *features.GradleCacheInput:
 				v.GradleCacheEnabled = true
 			}
 		}).Return(nil)
 
 		mockCmd := mocks.NewMockCommand(t)
-		mockCmd.On("SetArgs", mock.Anything).Return()
+		mockCmd.On("SetArgs", []string{"activate", "react-native", "--debug"}).Return()
 		mockCmd.On("Execute").Return(nil)
 
 		sut := step.New(
@@ -47,6 +40,67 @@ func Test_Step(t *testing.T) {
 		err := sut.Run()
 
 		assert.Nil(t, err)
+		mockCmd.AssertCalled(t, "SetArgs", []string{"activate", "react-native", "--debug"})
+	})
+
+	t.Run("Only gradle enabled — cpp follows gradle, xcode disabled", func(t *testing.T) {
+		mockLogger := mocks.NewMockLogger(t)
+		mockLogger.On("EnableDebugLog", false).Return().Once()
+		mockLogger.On("Println").Return().Once()
+		mockLogger.On("Infof", step.ReactNativeFeaturesActivatedMsg).Return().Once()
+
+		mockParser := mocks.NewMockInputParser(t)
+		mockParser.On("Parse", mock.Anything).Run(func(args mock.Arguments) {
+			if v, ok := args.Get(0).(*step.Input); ok {
+				v.GradleCacheEnabled = true
+			}
+		}).Return(nil)
+
+		mockCmd := mocks.NewMockCommand(t)
+		mockCmd.On("SetArgs", []string{"activate", "react-native", "--xcode=false"}).Return()
+		mockCmd.On("Execute").Return(nil)
+
+		sut := step.New(
+			mockLogger,
+			mockParser,
+			func(annotation service.Annotation) error { return nil },
+			mockCmd,
+		)
+
+		err := sut.Run()
+
+		assert.Nil(t, err)
+		mockCmd.AssertCalled(t, "SetArgs", []string{"activate", "react-native", "--xcode=false"})
+	})
+
+	t.Run("Only xcode enabled — gradle and cpp disabled", func(t *testing.T) {
+		mockLogger := mocks.NewMockLogger(t)
+		mockLogger.On("EnableDebugLog", false).Return().Once()
+		mockLogger.On("Println").Return().Once()
+		mockLogger.On("Infof", step.ReactNativeFeaturesActivatedMsg).Return().Once()
+
+		mockParser := mocks.NewMockInputParser(t)
+		mockParser.On("Parse", mock.Anything).Run(func(args mock.Arguments) {
+			if v, ok := args.Get(0).(*step.Input); ok {
+				v.XcodeCacheEnabled = true
+			}
+		}).Return(nil)
+
+		mockCmd := mocks.NewMockCommand(t)
+		mockCmd.On("SetArgs", []string{"activate", "react-native", "--gradle=false", "--cpp=false"}).Return()
+		mockCmd.On("Execute").Return(nil)
+
+		sut := step.New(
+			mockLogger,
+			mockParser,
+			func(annotation service.Annotation) error { return nil },
+			mockCmd,
+		)
+
+		err := sut.Run()
+
+		assert.Nil(t, err)
+		mockCmd.AssertCalled(t, "SetArgs", []string{"activate", "react-native", "--gradle=false", "--cpp=false"})
 	})
 
 	t.Run("Failed to parse input", func(t *testing.T) {
@@ -76,7 +130,6 @@ func Test_Step(t *testing.T) {
 
 		mockParser := mocks.NewMockInputParser(t)
 		mockParser.On("Parse", mock.Anything).Return(nil)
-		// All feature inputs default to false (not enabled), so all features return nil
 
 		mockCmd := mocks.NewMockCommand(t)
 
@@ -95,12 +148,11 @@ func Test_Step(t *testing.T) {
 		mockLogger := mocks.NewMockLogger(t)
 		mockLogger.On("EnableDebugLog", false).Return().Once()
 		mockLogger.On("Println").Return().Once()
-		mockLogger.On("Debugf", mock.Anything, mock.Anything).Return()
 
 		mockParser := mocks.NewMockInputParser(t)
 		mockParser.On("Parse", mock.Anything).Run(func(args mock.Arguments) {
-			if v, ok := args.Get(0).(*features.CPPCacheInput); ok {
-				v.CPPCacheEnabled = true
+			if v, ok := args.Get(0).(*step.Input); ok {
+				v.GradleCacheEnabled = true
 			}
 		}).Return(nil)
 

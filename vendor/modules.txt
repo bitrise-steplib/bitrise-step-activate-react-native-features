@@ -7,11 +7,12 @@ github.com/bazelbuild/remote-apis/build/bazel/semver
 # github.com/beevik/etree v1.6.0
 ## explicit; go 1.23.0
 github.com/beevik/etree
-# github.com/bitrise-io/bitrise-build-cache-cli v1.5.4-0.20260402085153-284d36755920
+# github.com/bitrise-io/bitrise-build-cache-cli v1.5.6-0.20260407175812-4c9a114aa4bc
 ## explicit; go 1.24.0
 github.com/bitrise-io/bitrise-build-cache-cli/cmd/ccache
 github.com/bitrise-io/bitrise-build-cache-cli/cmd/common
 github.com/bitrise-io/bitrise-build-cache-cli/cmd/gradle
+github.com/bitrise-io/bitrise-build-cache-cli/cmd/reactnative
 github.com/bitrise-io/bitrise-build-cache-cli/cmd/xcode
 github.com/bitrise-io/bitrise-build-cache-cli/internal/analytics/multiplatform
 github.com/bitrise-io/bitrise-build-cache-cli/internal/build_cache/kv
@@ -21,6 +22,7 @@ github.com/bitrise-io/bitrise-build-cache-cli/internal/ccache/protocol
 github.com/bitrise-io/bitrise-build-cache-cli/internal/config/ccache
 github.com/bitrise-io/bitrise-build-cache-cli/internal/config/common
 github.com/bitrise-io/bitrise-build-cache-cli/internal/config/gradle
+github.com/bitrise-io/bitrise-build-cache-cli/internal/config/multiplatform
 github.com/bitrise-io/bitrise-build-cache-cli/internal/config/xcelerate
 github.com/bitrise-io/bitrise-build-cache-cli/internal/consts
 github.com/bitrise-io/bitrise-build-cache-cli/internal/diagnostics
