@@ -20,7 +20,7 @@ type stepLogger struct {
 }
 
 func (l stepLogger) FormattedErrorf(err error) {
-	l.Errorf(errorutil.FormattedError(err))
+	l.Errorf("%s", errorutil.FormattedError(err))
 }
 
 func main() {
