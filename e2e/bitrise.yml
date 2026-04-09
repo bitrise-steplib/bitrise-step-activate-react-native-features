@@ -1,0 +1,87 @@
+format_version: "11"
+default_step_lib_source: https://github.com/bitrise-io/bitrise-steplib.git
+
+app:
+  envs:
+  - TEST_APP_URL: git@github.com:facebook/react-native.git
+  - BRANCH: main
+
+workflows:
+  test_disable_all:
+    envs:
+    - XCODE_CACHE_ENABLED: "false"
+    - GRADLE_CACHE_ENABLED: "false"
+    - VERBOSE: "true"
+    steps:
+    - bundle::setup: { }
+    - bundle::run: { }
+    - bundle::check: { }
+
+  test_xcode_cache:
+    envs:
+    - XCODE_CACHE_ENABLED: "true"
+    - GRADLE_CACHE_ENABLED: "false"
+    - VERBOSE: "true"
+    steps:
+    - bundle::setup: { }
+    - bundle::run: { }
+    - bundle::check: { }
+
+  test_gradle_cache:
+    envs:
+    - XCODE_CACHE_ENABLED: "false"
+    - GRADLE_CACHE_ENABLED: "true"
+    - VERBOSE: "true"
+    steps:
+    - bundle::setup: { }
+    - bundle::run: { }
+    - bundle::check: { }
+
+  test_enable_all:
+    envs:
+    - XCODE_CACHE_ENABLED: "true"
+    - GRADLE_CACHE_ENABLED: "true"
+    - VERBOSE: "true"
+    steps:
+    - bundle::setup: { }
+    - bundle::run: { }
+    - bundle::check: { }
+
+step_bundles:
+  setup:
+    steps:
+    - script:
+        title: Clean previous test artifacts
+        inputs:
+        - content: |-
+            rm -rf _tmp
+            rm -f ~/.bitrise/cache/ccache/config.json
+            rm -rf ~/.bitrise-xcelerate
+            rm -f ~/.gradle/init.d/bitrise-build-cache.init.gradle.kts
+    - git::https://github.com/bitrise-steplib/bitrise-step-simple-git-clone.git:
+        inputs:
+        - repository_url: $TEST_APP_URL
+        - clone_into_dir: ./_tmp
+        - branch: $BRANCH
+
+  run:
+    envs:
+    # Unset BITRISE_IO so the CLI does not detect a Bitrise CI provider.
+    # This prevents the benchmark phase API from overriding cache-enabled flags during E2E tests.
+    - BITRISE_IO: ""
+    steps:
+    - path::./:
+        title: Execute step
+        run_if: "true"
+        is_skippable: false
+        inputs:
+        - xcode_cache_enabled: $XCODE_CACHE_ENABLED
+        - gradle_cache_enabled: $GRADLE_CACHE_ENABLED
+        - verbose: $VERBOSE
+
+  check:
+    steps:
+    - script:
+        title: Check config files and environment variables
+        inputs:
+        - content: bash $BITRISE_SOURCE_DIR/e2e/scripts/check.sh
