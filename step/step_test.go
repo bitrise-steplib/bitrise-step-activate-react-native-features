@@ -37,9 +37,11 @@ func Test_Step(t *testing.T) {
 			mockCmd,
 		)
 
-		err := sut.Run()
+		err := sut.ProcessConfig()
+		assert.NoError(t, err)
 
-		assert.Nil(t, err)
+		err = sut.Run()
+		assert.NoError(t, err)
 		mockCmd.AssertCalled(t, "SetArgs", []string{"activate", "react-native", "--debug"})
 	})
 
@@ -67,9 +69,11 @@ func Test_Step(t *testing.T) {
 			mockCmd,
 		)
 
-		err := sut.Run()
+		err := sut.ProcessConfig()
+		assert.NoError(t, err)
 
-		assert.Nil(t, err)
+		err = sut.Run()
+		assert.NoError(t, err)
 		mockCmd.AssertCalled(t, "SetArgs", []string{"activate", "react-native", "--xcode=false"})
 	})
 
@@ -97,9 +101,11 @@ func Test_Step(t *testing.T) {
 			mockCmd,
 		)
 
-		err := sut.Run()
+		err := sut.ProcessConfig()
+		assert.NoError(t, err)
 
-		assert.Nil(t, err)
+		err = sut.Run()
+		assert.NoError(t, err)
 		mockCmd.AssertCalled(t, "SetArgs", []string{"activate", "react-native", "--gradle=false", "--cpp=false"})
 	})
 
@@ -118,7 +124,7 @@ func Test_Step(t *testing.T) {
 			mockCmd,
 		)
 
-		err := sut.Run()
+		err := sut.ProcessConfig()
 		assert.ErrorContains(t, err, step.FailedToParseInputsMsg)
 	})
 
@@ -140,8 +146,11 @@ func Test_Step(t *testing.T) {
 			mockCmd,
 		)
 
-		err := sut.Run()
-		assert.Nil(t, err)
+		err := sut.ProcessConfig()
+		assert.NoError(t, err)
+
+		err = sut.Run()
+		assert.NoError(t, err)
 	})
 
 	t.Run("Failed to activate", func(t *testing.T) {
@@ -167,7 +176,10 @@ func Test_Step(t *testing.T) {
 			mockCmd,
 		)
 
-		err := sut.Run()
+		err := sut.ProcessConfig()
+		assert.NoError(t, err)
+
+		err = sut.Run()
 		assert.EqualError(t, err, step.FailedToActivateMsg+": "+assert.AnError.Error())
 	})
 }

@@ -32,7 +32,6 @@ inputs:
 # -------------------------------------------------------------------------------
 - xcode_cache_enabled: "true"
   opts:
-    category: xcode cache
     title: Enable Xcode cache
     summary: Enables Bitrise Build Cache for Xcode using Xcelerate
     is_required: true
@@ -47,7 +46,6 @@ inputs:
 # -------------------------------------------------------------------------------
 - gradle_cache_enabled: "true"
   opts:
-    category: gradle cache
     title: Enable Gradle cache
     summary: Enables Bitrise Build Cache for Gradle
     is_required: true
@@ -62,7 +60,6 @@ inputs:
 # -------------------------------------------------------------------------------
 - verbose: "false"
   opts:
-    category: debugging
     title: Verbose logging
     summary: Enable logging additional information for troubleshooting
     is_required: true

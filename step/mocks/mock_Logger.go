@@ -129,6 +129,100 @@ func (_c *MockLogger_EnableDebugLog_Call) RunAndReturn(run func(enable bool)) *M
 	return _c
 }
 
+// Errorf provides a mock function for the type MockLogger
+func (_mock *MockLogger) Errorf(format string, v ...any) {
+	if len(v) > 0 {
+		_mock.Called(format, v)
+	} else {
+		_mock.Called(format)
+	}
+
+	return
+}
+
+// MockLogger_Errorf_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'Errorf'
+type MockLogger_Errorf_Call struct {
+	*mock.Call
+}
+
+// Errorf is a helper method to define mock.On call
+//   - format string
+//   - v ...any
+func (_e *MockLogger_Expecter) Errorf(format interface{}, v ...interface{}) *MockLogger_Errorf_Call {
+	return &MockLogger_Errorf_Call{Call: _e.mock.On("Errorf",
+		append([]interface{}{format}, v...)...)}
+}
+
+func (_c *MockLogger_Errorf_Call) Run(run func(format string, v ...any)) *MockLogger_Errorf_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 string
+		if args[0] != nil {
+			arg0 = args[0].(string)
+		}
+		var arg1 []any
+		var variadicArgs []any
+		if len(args) > 1 {
+			variadicArgs = args[1].([]any)
+		}
+		arg1 = variadicArgs
+		run(
+			arg0,
+			arg1...,
+		)
+	})
+	return _c
+}
+
+func (_c *MockLogger_Errorf_Call) Return() *MockLogger_Errorf_Call {
+	_c.Call.Return()
+	return _c
+}
+
+func (_c *MockLogger_Errorf_Call) RunAndReturn(run func(format string, v ...any)) *MockLogger_Errorf_Call {
+	_c.Run(run)
+	return _c
+}
+
+// FormattedErrorf provides a mock function for the type MockLogger
+func (_mock *MockLogger) FormattedErrorf(err error) {
+	_mock.Called(err)
+	return
+}
+
+// MockLogger_FormattedErrorf_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'FormattedErrorf'
+type MockLogger_FormattedErrorf_Call struct {
+	*mock.Call
+}
+
+// FormattedErrorf is a helper method to define mock.On call
+//   - err error
+func (_e *MockLogger_Expecter) FormattedErrorf(err interface{}) *MockLogger_FormattedErrorf_Call {
+	return &MockLogger_FormattedErrorf_Call{Call: _e.mock.On("FormattedErrorf", err)}
+}
+
+func (_c *MockLogger_FormattedErrorf_Call) Run(run func(err error)) *MockLogger_FormattedErrorf_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 error
+		if args[0] != nil {
+			arg0 = args[0].(error)
+		}
+		run(
+			arg0,
+		)
+	})
+	return _c
+}
+
+func (_c *MockLogger_FormattedErrorf_Call) Return() *MockLogger_FormattedErrorf_Call {
+	_c.Call.Return()
+	return _c
+}
+
+func (_c *MockLogger_FormattedErrorf_Call) RunAndReturn(run func(err error)) *MockLogger_FormattedErrorf_Call {
+	_c.Run(run)
+	return _c
+}
+
 // Infof provides a mock function for the type MockLogger
 func (_mock *MockLogger) Infof(format string, v ...any) {
 	if len(v) > 0 {

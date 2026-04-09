@@ -25,6 +25,7 @@ type Step struct {
 	inputParser InputParser
 	annotator   func(annotation service.Annotation) error
 	command     Command
+	input       Input
 }
 
 func New(
@@ -32,8 +33,8 @@ func New(
 	inputParser InputParser,
 	annotator func(annotation service.Annotation) error,
 	command Command,
-) Step {
-	return Step{
+) *Step {
+	return &Step{
 		logger:      logger,
 		inputParser: inputParser,
 		annotator:   annotator,
@@ -41,39 +42,50 @@ func New(
 	}
 }
 
-func (step Step) Run() error {
-	var input Input
-	if err := step.inputParser.Parse(&input); err != nil {
+func (s *Step) ProcessConfig() error {
+	if err := s.inputParser.Parse(&s.input); err != nil {
 		return fmt.Errorf(FailedToParseInputsMsg+": %w", err)
 	}
-	step.logger.EnableDebugLog(input.Verbose)
+	s.logger.EnableDebugLog(s.input.Verbose)
 
-	stepconf.Print(input)
-	step.logger.Println()
+	stepconf.Print(s.input)
+	s.logger.Println()
 
-	if !input.XcodeCacheEnabled && !input.GradleCacheEnabled {
-		step.logger.Infof(NoFeaturesEnabledMsg)
+	return nil
+}
+
+func (s *Step) InstallDeps() error {
+	return nil
+}
+
+func (s *Step) Run() error {
+	if !s.input.XcodeCacheEnabled && !s.input.GradleCacheEnabled {
+		s.logger.Infof(NoFeaturesEnabledMsg)
 
 		return nil
 	}
 
 	args := []string{"activate", "react-native"}
-	if !input.GradleCacheEnabled {
+	if !s.input.GradleCacheEnabled {
 		args = append(args, "--gradle=false", "--cpp=false")
 	}
-	if !input.XcodeCacheEnabled {
+	if !s.input.XcodeCacheEnabled {
 		args = append(args, "--xcode=false")
 	}
-	if input.Verbose {
+	if s.input.Verbose {
 		args = append(args, "--debug")
 	}
 
-	step.command.SetArgs(args)
-	if err := step.command.Execute(); err != nil {
+	s.command.SetArgs(args)
+	if err := s.command.Execute(); err != nil {
 		return fmt.Errorf(FailedToActivateMsg+": %w", err)
 	}
 
-	step.logger.Infof(ReactNativeFeaturesActivatedMsg)
+	s.logger.Infof(ReactNativeFeaturesActivatedMsg)
 
+	return nil
+}
+
+func (s *Step) ExportOutputs() error {
 	return nil
 }
