@@ -1,4 +1,4 @@
-title: Activate React Native Features
+title: Build Cache for React Native
 summary: Activates Bitrise Build Cache features for React Native projects
 description: |
   This Step activates Bitrise Build Cache for all build systems used in a React Native project.

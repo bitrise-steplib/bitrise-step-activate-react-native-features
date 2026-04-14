@@ -1,4 +1,4 @@
-# Activate React Native Features
+# Build Cache for React Native
 
 [![Step changelog](https://shields.io/github/v/release/bitrise-steplib/bitrise-step-activate-react-native-features?include_prereleases&label=changelog&color=blueviolet)](https://github.com/bitrise-steplib/bitrise-step-activate-react-native-features/releases)
 

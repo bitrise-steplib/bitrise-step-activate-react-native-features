@@ -3,8 +3,6 @@ package main
 import (
 	"os"
 
-	cli "github.com/bitrise-io/bitrise-build-cache-cli/cmd/common"
-	_ "github.com/bitrise-io/bitrise-build-cache-cli/cmd/reactnative"
 	"github.com/bitrise-io/bitrise-plugins-annotations/service"
 	"github.com/bitrise-io/go-steputils/v2/stepconf"
 	"github.com/bitrise-io/go-utils/v2/env"
@@ -63,6 +61,5 @@ func createStep() (stepLogger, step.Runner) {
 		logger,
 		inputParser,
 		service.Annotate,
-		cli.RootCmd,
 	)
 }
