@@ -1,6 +1,9 @@
 package step_test
 
 import (
+	"fmt"
+	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/bitrise-io/bitrise-plugins-annotations/service"
@@ -8,178 +11,135 @@ import (
 	"github.com/bitrise-steplib/bitrise-step-activate-react-native-features/step/mocks"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/require"
 )
 
+// fakeBinary creates a shell script at a temp path that captures its arguments
+// to a file and exits with the given code. Returns the binary path and args file path.
+func fakeBinary(t *testing.T, exitCode int) (binaryPath, argsFile string) {
+	t.Helper()
+
+	dir := t.TempDir()
+	binaryPath = filepath.Join(dir, "bitrise-build-cache")
+	argsFile = filepath.Join(dir, "captured-args")
+
+	script := `#!/bin/sh
+echo "$@" > ` + argsFile + `
+exit ` + fmt.Sprintf("%d", exitCode)
+
+	require.NoError(t, os.WriteFile(binaryPath, []byte(script), 0o755))
+
+	return binaryPath, argsFile
+}
+
+func newTestStep(t *testing.T, input step.Input, binaryPath string) *step.Step {
+	t.Helper()
+
+	mockLogger := mocks.NewMockLogger(t)
+	mockLogger.On("EnableDebugLog", mock.Anything).Return().Maybe()
+	mockLogger.On("Println").Return().Maybe()
+	mockLogger.On("Infof", mock.Anything).Return().Maybe()
+	mockLogger.On("Infof", mock.Anything, mock.Anything).Return().Maybe()
+
+	mockParser := mocks.NewMockInputParser(t)
+	mockParser.On("Parse", mock.Anything).Run(func(args mock.Arguments) {
+		if v, ok := args.Get(0).(*step.Input); ok {
+			*v = input
+		}
+	}).Return(nil)
+
+	s := step.New(
+		mockLogger,
+		mockParser,
+		func(_ service.Annotation) error { return nil },
+	)
+
+	require.NoError(t, s.ProcessConfig())
+	s.SetCLIBinaryPath(binaryPath)
+
+	return s
+}
+
 func Test_Step(t *testing.T) {
-	t.Run("All features enabled", func(t *testing.T) {
-		mockLogger := mocks.NewMockLogger(t)
-		mockLogger.On("EnableDebugLog", true).Return().Once()
-		mockLogger.On("Println").Return().Once()
-		mockLogger.On("Infof", step.ReactNativeFeaturesActivatedMsg).Return().Once()
+	t.Run("All features enabled — passes correct flags", func(t *testing.T) {
+		binaryPath, argsFile := fakeBinary(t, 0)
+		s := newTestStep(t, step.Input{
+			Verbose:            true,
+			XcodeCacheEnabled:  true,
+			GradleCacheEnabled: true,
+		}, binaryPath)
 
-		mockParser := mocks.NewMockInputParser(t)
-		mockParser.On("Parse", mock.Anything).Run(func(args mock.Arguments) {
-			if v, ok := args.Get(0).(*step.Input); ok {
-				v.Verbose = true
-				v.XcodeCacheEnabled = true
-				v.GradleCacheEnabled = true
-			}
-		}).Return(nil)
+		err := s.Run()
 
-		mockCmd := mocks.NewMockCommand(t)
-		mockCmd.On("SetArgs", []string{"activate", "react-native", "--debug"}).Return()
-		mockCmd.On("Execute").Return(nil)
-
-		sut := step.New(
-			mockLogger,
-			mockParser,
-			func(annotation service.Annotation) error { return nil },
-			mockCmd,
-		)
-
-		err := sut.ProcessConfig()
-		assert.NoError(t, err)
-
-		err = sut.Run()
-		assert.NoError(t, err)
-		mockCmd.AssertCalled(t, "SetArgs", []string{"activate", "react-native", "--debug"})
+		require.NoError(t, err)
+		args, _ := os.ReadFile(argsFile)
+		assert.Contains(t, string(args), "activate react-native")
+		assert.Contains(t, string(args), "--debug")
 	})
 
-	t.Run("Only gradle enabled — cpp follows gradle, xcode disabled", func(t *testing.T) {
-		mockLogger := mocks.NewMockLogger(t)
-		mockLogger.On("EnableDebugLog", false).Return().Once()
-		mockLogger.On("Println").Return().Once()
-		mockLogger.On("Infof", step.ReactNativeFeaturesActivatedMsg).Return().Once()
+	t.Run("Only gradle enabled — xcode disabled", func(t *testing.T) {
+		binaryPath, argsFile := fakeBinary(t, 0)
+		s := newTestStep(t, step.Input{
+			GradleCacheEnabled: true,
+		}, binaryPath)
 
-		mockParser := mocks.NewMockInputParser(t)
-		mockParser.On("Parse", mock.Anything).Run(func(args mock.Arguments) {
-			if v, ok := args.Get(0).(*step.Input); ok {
-				v.GradleCacheEnabled = true
-			}
-		}).Return(nil)
+		err := s.Run()
 
-		mockCmd := mocks.NewMockCommand(t)
-		mockCmd.On("SetArgs", []string{"activate", "react-native", "--xcode=false"}).Return()
-		mockCmd.On("Execute").Return(nil)
-
-		sut := step.New(
-			mockLogger,
-			mockParser,
-			func(annotation service.Annotation) error { return nil },
-			mockCmd,
-		)
-
-		err := sut.ProcessConfig()
-		assert.NoError(t, err)
-
-		err = sut.Run()
-		assert.NoError(t, err)
-		mockCmd.AssertCalled(t, "SetArgs", []string{"activate", "react-native", "--xcode=false"})
+		require.NoError(t, err)
+		args, _ := os.ReadFile(argsFile)
+		assert.Contains(t, string(args), "--xcode=false")
+		assert.NotContains(t, string(args), "--gradle=false")
 	})
 
 	t.Run("Only xcode enabled — gradle and cpp disabled", func(t *testing.T) {
-		mockLogger := mocks.NewMockLogger(t)
-		mockLogger.On("EnableDebugLog", false).Return().Once()
-		mockLogger.On("Println").Return().Once()
-		mockLogger.On("Infof", step.ReactNativeFeaturesActivatedMsg).Return().Once()
+		binaryPath, argsFile := fakeBinary(t, 0)
+		s := newTestStep(t, step.Input{
+			XcodeCacheEnabled: true,
+		}, binaryPath)
 
-		mockParser := mocks.NewMockInputParser(t)
-		mockParser.On("Parse", mock.Anything).Run(func(args mock.Arguments) {
-			if v, ok := args.Get(0).(*step.Input); ok {
-				v.XcodeCacheEnabled = true
-			}
-		}).Return(nil)
+		err := s.Run()
 
-		mockCmd := mocks.NewMockCommand(t)
-		mockCmd.On("SetArgs", []string{"activate", "react-native", "--gradle=false", "--cpp=false"}).Return()
-		mockCmd.On("Execute").Return(nil)
+		require.NoError(t, err)
+		args, _ := os.ReadFile(argsFile)
+		assert.Contains(t, string(args), "--gradle=false")
+		assert.Contains(t, string(args), "--cpp=false")
+		assert.NotContains(t, string(args), "--xcode=false")
+	})
 
-		sut := step.New(
-			mockLogger,
-			mockParser,
-			func(annotation service.Annotation) error { return nil },
-			mockCmd,
-		)
+	t.Run("No features enabled — does not call CLI", func(t *testing.T) {
+		binaryPath, argsFile := fakeBinary(t, 0)
+		s := newTestStep(t, step.Input{}, binaryPath)
 
-		err := sut.ProcessConfig()
-		assert.NoError(t, err)
+		err := s.Run()
 
-		err = sut.Run()
-		assert.NoError(t, err)
-		mockCmd.AssertCalled(t, "SetArgs", []string{"activate", "react-native", "--gradle=false", "--cpp=false"})
+		require.NoError(t, err)
+		_, err = os.ReadFile(argsFile)
+		assert.True(t, os.IsNotExist(err), "CLI should not have been called")
+	})
+
+	t.Run("CLI failure is propagated", func(t *testing.T) {
+		binaryPath, _ := fakeBinary(t, 1)
+		s := newTestStep(t, step.Input{
+			GradleCacheEnabled: true,
+		}, binaryPath)
+
+		err := s.Run()
+
+		assert.ErrorContains(t, err, step.FailedToActivateMsg)
 	})
 
 	t.Run("Failed to parse input", func(t *testing.T) {
 		mockLogger := mocks.NewMockLogger(t)
-
 		mockParser := mocks.NewMockInputParser(t)
 		mockParser.On("Parse", mock.AnythingOfType("*step.Input")).Return(assert.AnError)
 
-		mockCmd := mocks.NewMockCommand(t)
-
-		sut := step.New(
+		s := step.New(
 			mockLogger,
 			mockParser,
-			func(annotation service.Annotation) error { return nil },
-			mockCmd,
+			func(_ service.Annotation) error { return nil },
 		)
 
-		err := sut.ProcessConfig()
+		err := s.ProcessConfig()
 		assert.ErrorContains(t, err, step.FailedToParseInputsMsg)
-	})
-
-	t.Run("No features enabled", func(t *testing.T) {
-		mockLogger := mocks.NewMockLogger(t)
-		mockLogger.On("EnableDebugLog", false).Return().Once()
-		mockLogger.On("Println").Return().Once()
-		mockLogger.On("Infof", step.NoFeaturesEnabledMsg).Return().Once()
-
-		mockParser := mocks.NewMockInputParser(t)
-		mockParser.On("Parse", mock.Anything).Return(nil)
-
-		mockCmd := mocks.NewMockCommand(t)
-
-		sut := step.New(
-			mockLogger,
-			mockParser,
-			func(annotation service.Annotation) error { return nil },
-			mockCmd,
-		)
-
-		err := sut.ProcessConfig()
-		assert.NoError(t, err)
-
-		err = sut.Run()
-		assert.NoError(t, err)
-	})
-
-	t.Run("Failed to activate", func(t *testing.T) {
-		mockLogger := mocks.NewMockLogger(t)
-		mockLogger.On("EnableDebugLog", false).Return().Once()
-		mockLogger.On("Println").Return().Once()
-
-		mockParser := mocks.NewMockInputParser(t)
-		mockParser.On("Parse", mock.Anything).Run(func(args mock.Arguments) {
-			if v, ok := args.Get(0).(*step.Input); ok {
-				v.GradleCacheEnabled = true
-			}
-		}).Return(nil)
-
-		mockCmd := mocks.NewMockCommand(t)
-		mockCmd.On("SetArgs", mock.Anything).Return()
-		mockCmd.On("Execute").Return(assert.AnError)
-
-		sut := step.New(
-			mockLogger,
-			mockParser,
-			func(annotation service.Annotation) error { return nil },
-			mockCmd,
-		)
-
-		err := sut.ProcessConfig()
-		assert.NoError(t, err)
-
-		err = sut.Run()
-		assert.EqualError(t, err, step.FailedToActivateMsg+": "+assert.AnError.Error())
 	})
 }

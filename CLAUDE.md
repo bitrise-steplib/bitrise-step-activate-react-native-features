@@ -1,6 +1,6 @@
-# bitrise-step-activate-react-native-features
+# Build Cache for React Native
 
-A Bitrise step that activates Bitrise Build Cache for React Native projects. It delegates to the CLI's unified `activate react-native` command, which handles Gradle, Xcode, and C++ (ccache) activation including background service startup.
+A Bitrise step that activates Bitrise Build Cache for React Native projects. It downloads the CLI binary and delegates to the `activate react-native` command, which handles Gradle, Xcode, and C++ (ccache) activation including background service startup.
 
 ## Architecture
 

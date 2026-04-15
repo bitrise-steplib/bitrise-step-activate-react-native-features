@@ -1,4 +1,4 @@
-# Activate React Native Features
+# Build Cache for React Native
 
 [![Step changelog](https://shields.io/github/v/release/bitrise-steplib/bitrise-step-activate-react-native-features?include_prereleases&label=changelog&color=blueviolet)](https://github.com/bitrise-steplib/bitrise-step-activate-react-native-features/releases)
 
@@ -10,9 +10,8 @@ Activates Bitrise Build Cache features for React Native projects
 This Step activates Bitrise Build Cache for all build systems used in a React Native project.
 
 After this Step executes,
-- enabling C++ cache will result in: C++ native modules will be compiled using ccache, with a background storage helper started automatically.
 - enabling Xcode cache will result in: iOS builds will use the Bitrise Build Cache for Xcode via Xcelerate, with a background proxy started automatically.
-- enabling Gradle cache will result in: Android Gradle builds will automatically read from and push entries to the remote cache.
+- enabling Gradle cache will result in: Android Gradle builds will automatically read from and push entries to the remote cache. C++ native modules will also be compiled using ccache, with a background storage helper started automatically.
 
 </details>
 
