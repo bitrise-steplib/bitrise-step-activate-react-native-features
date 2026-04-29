@@ -24,7 +24,7 @@ func fakeBinary(t *testing.T, exitCode int) (binaryPath, argsFile string) {
 	argsFile = filepath.Join(dir, "captured-args")
 
 	script := `#!/bin/sh
-echo "$@" > ` + argsFile + `
+echo "$@" >> ` + argsFile + `
 exit ` + fmt.Sprintf("%d", exitCode)
 
 	require.NoError(t, os.WriteFile(binaryPath, []byte(script), 0o755))
@@ -40,6 +40,7 @@ func newTestStep(t *testing.T, input step.Input, binaryPath string) *step.Step {
 	mockLogger.On("Println").Return().Maybe()
 	mockLogger.On("Infof", mock.Anything).Return().Maybe()
 	mockLogger.On("Infof", mock.Anything, mock.Anything).Return().Maybe()
+	mockLogger.On("Warnf", mock.Anything, mock.Anything).Return().Maybe()
 
 	mockParser := mocks.NewMockInputParser(t)
 	mockParser.On("Parse", mock.Anything).Run(func(args mock.Arguments) {
@@ -75,6 +76,20 @@ func Test_Step(t *testing.T) {
 		args, _ := os.ReadFile(argsFile)
 		assert.Contains(t, string(args), "activate react-native")
 		assert.Contains(t, string(args), "--debug")
+		assert.Contains(t, string(args), "activate gradle-mirrors")
+	})
+
+	t.Run("Gradle disabled — gradle-mirrors not called", func(t *testing.T) {
+		binaryPath, argsFile := fakeBinary(t, 0)
+		s := newTestStep(t, step.Input{
+			XcodeCacheEnabled: true,
+		}, binaryPath)
+
+		err := s.Run()
+
+		require.NoError(t, err)
+		args, _ := os.ReadFile(argsFile)
+		assert.NotContains(t, string(args), "gradle-mirrors")
 	})
 
 	t.Run("Only gradle enabled — xcode disabled", func(t *testing.T) {

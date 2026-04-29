@@ -96,9 +96,28 @@ func (s *Step) Run() error {
 		return fmt.Errorf(FailedToActivateMsg+": %w", err)
 	}
 
+	if s.input.GradleCacheEnabled {
+		if err := s.activateGradleMirrors(); err != nil {
+			s.logger.Warnf("Activate Gradle mirrors: %s", err)
+		}
+	}
+
 	s.logger.Infof(ReactNativeFeaturesActivatedMsg)
 
 	return nil
+}
+
+func (s *Step) activateGradleMirrors() error {
+	args := []string{"activate", "gradle-mirrors"}
+	if s.input.Verbose {
+		args = append(args, "--debug")
+	}
+
+	cmd := exec.Command(s.cliBinaryPath, args...) //nolint:gosec
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+
+	return cmd.Run()
 }
 
 // SetCLIBinaryPath overrides the CLI binary path. Used in tests.
