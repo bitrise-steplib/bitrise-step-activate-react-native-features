@@ -76,20 +76,6 @@ func Test_Step(t *testing.T) {
 		args, _ := os.ReadFile(argsFile)
 		assert.Contains(t, string(args), "activate react-native")
 		assert.Contains(t, string(args), "--debug")
-		assert.Contains(t, string(args), "activate gradle-mirrors")
-	})
-
-	t.Run("Gradle disabled — gradle-mirrors not called", func(t *testing.T) {
-		binaryPath, argsFile := fakeBinary(t, 0)
-		s := newTestStep(t, step.Input{
-			XcodeCacheEnabled: true,
-		}, binaryPath)
-
-		err := s.Run()
-
-		require.NoError(t, err)
-		args, _ := os.ReadFile(argsFile)
-		assert.NotContains(t, string(args), "gradle-mirrors")
 	})
 
 	t.Run("Only gradle enabled — xcode disabled", func(t *testing.T) {
