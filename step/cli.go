@@ -48,7 +48,7 @@ func installCLI(ctx context.Context, logger Logger) (string, error) {
 }
 
 func isCorrectVersion(binaryPath string) bool {
-	out, err := exec.Command(binaryPath, "--version").Output() //nolint:gosec
+	out, err := exec.Command(binaryPath, "version").Output() //nolint:gosec
 	if err != nil {
 		return false
 	}
