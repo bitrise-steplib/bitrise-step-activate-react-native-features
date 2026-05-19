@@ -15,7 +15,7 @@ import (
 )
 
 const (
-	cliVersion    = "2.7.2"
+	cliVersion    = "2.7.3"
 	cliBinaryName = "bitrise-build-cache"
 	cliInstallDir = "/usr/local/bin"
 
@@ -48,7 +48,7 @@ func installCLI(ctx context.Context, logger Logger) (string, error) {
 }
 
 func isCorrectVersion(binaryPath string) bool {
-	out, err := exec.Command(binaryPath, "--version").Output() //nolint:gosec
+	out, err := exec.Command(binaryPath, "version").CombinedOutput() //nolint:gosec
 	if err != nil {
 		return false
 	}
