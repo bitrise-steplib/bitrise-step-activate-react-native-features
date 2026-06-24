@@ -63,6 +63,25 @@ assert_env_nonempty() {
   echo "✅ \$$var=$value"
 }
 
+# CLI availability: the step's documented contract is that, after it runs, the
+# `bitrise-build-cache` CLI is available by bare name in subsequent Script steps
+# (see docs/setup-guide.md). This step bundle runs after the activate step, so it
+# verifies the install dir was exported onto PATH. Resolving by bare name — not a
+# hardcoded path — is what mirrors the real downstream usage.
+echo "--- CLI on PATH ---"
+if ! resolved="$(command -v bitrise-build-cache)"; then
+  echo "❌ bitrise-build-cache is not on PATH for subsequent steps"
+  echo "   PATH=$PATH"
+  exit 1
+fi
+echo "✅ bitrise-build-cache resolved on PATH: $resolved"
+
+if ! bitrise-build-cache version; then
+  echo "❌ bitrise-build-cache is on PATH but failed to execute"
+  exit 1
+fi
+echo "✅ bitrise-build-cache executed successfully via PATH"
+
 # C++ cache checks (cpp is enabled whenever gradle is enabled)
 if [ "$GRADLE_CACHE_ENABLED" = "true" ]; then
   echo "--- C++ cache ---"

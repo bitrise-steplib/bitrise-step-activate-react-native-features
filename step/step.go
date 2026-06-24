@@ -5,9 +5,13 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"path/filepath"
 
 	"github.com/bitrise-io/bitrise-plugins-annotations/service"
+	"github.com/bitrise-io/go-steputils/v2/export"
 	"github.com/bitrise-io/go-steputils/v2/stepconf"
+	"github.com/bitrise-io/go-utils/v2/command"
+	"github.com/bitrise-io/go-utils/v2/env"
 )
 
 const (
@@ -24,10 +28,16 @@ type Input struct {
 	GradleCacheEnabled bool `env:"gradle_cache_enabled,required"`
 }
 
+// pathExporter exposes a value to subsequent steps. Satisfied by export.Exporter.
+type pathExporter interface {
+	ExportOutputNoExpand(key, value string) error
+}
+
 type Step struct {
 	logger        Logger
 	inputParser   InputParser
 	annotator     func(annotation service.Annotation) error
+	exporter      pathExporter
 	input         Input
 	cliBinaryPath string
 }
@@ -37,10 +47,14 @@ func New(
 	inputParser InputParser,
 	annotator func(annotation service.Annotation) error,
 ) *Step {
+	envRepo := env.NewRepository()
+	exporter := export.NewExporter(command.NewFactory(envRepo), export.NewFileManager())
+
 	return &Step{
 		logger:      logger,
 		inputParser: inputParser,
 		annotator:   annotator,
+		exporter:    &exporter,
 	}
 }
 
@@ -106,6 +120,28 @@ func (s *Step) SetCLIBinaryPath(path string) {
 	s.cliBinaryPath = path
 }
 
+// SetExporter overrides the output exporter. Used in tests.
+func (s *Step) SetExporter(e pathExporter) {
+	s.exporter = e
+}
+
+// ExportOutputs makes the CLI binary available on PATH for subsequent steps.
+// Downstream steps invoke `bitrise-build-cache` by name (e.g.
+// `bitrise-build-cache react-native run`), so the directory it was installed
+// into must be on PATH — it is not guaranteed to be (e.g. /tmp/bin).
 func (s *Step) ExportOutputs() error {
+	if s.cliBinaryPath == "" || s.exporter == nil {
+		return nil
+	}
+
+	binDir := filepath.Dir(s.cliBinaryPath)
+	newPath := binDir + string(os.PathListSeparator) + os.Getenv("PATH")
+
+	if err := s.exporter.ExportOutputNoExpand("PATH", newPath); err != nil {
+		return fmt.Errorf("export PATH: %w", err)
+	}
+
+	s.logger.Debugf("Added %s to PATH for subsequent steps", binDir)
+
 	return nil
 }

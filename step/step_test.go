@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/bitrise-io/bitrise-plugins-annotations/service"
@@ -13,6 +14,22 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 )
+
+// fakeExporter records the last ExportOutputNoExpand call for assertions.
+type fakeExporter struct {
+	calls int
+	key   string
+	value string
+	err   error
+}
+
+func (f *fakeExporter) ExportOutputNoExpand(key, value string) error {
+	f.calls++
+	f.key = key
+	f.value = value
+
+	return f.err
+}
 
 // fakeBinary creates a shell script at a temp path that captures its arguments
 // to a file and exits with the given code. Returns the binary path and args file path.
@@ -41,6 +58,7 @@ func newTestStep(t *testing.T, input step.Input, binaryPath string) *step.Step {
 	mockLogger.On("Infof", mock.Anything).Return().Maybe()
 	mockLogger.On("Infof", mock.Anything, mock.Anything).Return().Maybe()
 	mockLogger.On("Warnf", mock.Anything, mock.Anything).Return().Maybe()
+	mockLogger.On("Debugf", mock.Anything, mock.Anything).Return().Maybe()
 
 	mockParser := mocks.NewMockInputParser(t)
 	mockParser.On("Parse", mock.Anything).Run(func(args mock.Arguments) {
@@ -127,6 +145,41 @@ func Test_Step(t *testing.T) {
 		err := s.Run()
 
 		assert.ErrorContains(t, err, step.FailedToActivateMsg)
+	})
+
+	t.Run("ExportOutputs adds the install dir to PATH for subsequent steps", func(t *testing.T) {
+		binaryPath, _ := fakeBinary(t, 0)
+		s := newTestStep(t, step.Input{GradleCacheEnabled: true}, binaryPath)
+		exporter := &fakeExporter{}
+		s.SetExporter(exporter)
+
+		require.NoError(t, s.ExportOutputs())
+
+		require.Equal(t, 1, exporter.calls)
+		assert.Equal(t, "PATH", exporter.key)
+		binDir := filepath.Dir(binaryPath)
+		assert.True(t, strings.HasPrefix(exporter.value, binDir+string(os.PathListSeparator)),
+			"PATH should start with the install dir, got %q", exporter.value)
+		assert.Contains(t, exporter.value, os.Getenv("PATH"))
+	})
+
+	t.Run("ExportOutputs propagates exporter errors", func(t *testing.T) {
+		binaryPath, _ := fakeBinary(t, 0)
+		s := newTestStep(t, step.Input{GradleCacheEnabled: true}, binaryPath)
+		s.SetExporter(&fakeExporter{err: assert.AnError})
+
+		err := s.ExportOutputs()
+
+		assert.ErrorContains(t, err, "export PATH")
+	})
+
+	t.Run("ExportOutputs is a no-op when no CLI was installed", func(t *testing.T) {
+		s := newTestStep(t, step.Input{GradleCacheEnabled: true}, "")
+		exporter := &fakeExporter{}
+		s.SetExporter(exporter)
+
+		require.NoError(t, s.ExportOutputs())
+		assert.Equal(t, 0, exporter.calls)
 	})
 
 	t.Run("Failed to parse input", func(t *testing.T) {

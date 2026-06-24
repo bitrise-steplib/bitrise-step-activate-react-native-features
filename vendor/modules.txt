@@ -3,7 +3,13 @@
 github.com/bitrise-io/bitrise-plugins-annotations/service
 # github.com/bitrise-io/go-steputils/v2 v2.0.0-alpha.49
 ## explicit; go 1.21
+github.com/bitrise-io/go-steputils/v2/export
 github.com/bitrise-io/go-steputils/v2/stepconf
+# github.com/bitrise-io/go-utils v1.0.13
+## explicit; go 1.13
+github.com/bitrise-io/go-utils/command
+github.com/bitrise-io/go-utils/pathutil
+github.com/bitrise-io/go-utils/ziputil
 # github.com/bitrise-io/go-utils/v2 v2.0.0-alpha.34
 ## explicit; go 1.21
 github.com/bitrise-io/go-utils/v2/command

@@ -17,26 +17,51 @@ import (
 const (
 	cliVersion    = "2.8.5"
 	cliBinaryName = "bitrise-build-cache"
-	cliInstallDir = "/usr/local/bin"
 
 	downloadURLTemplate = "https://github.com/bitrise-io/bitrise-build-cache-cli/releases/download/v%s/bitrise-build-cache_%s_%s_%s.tar.gz"
 
 	maxBinarySize = 500 << 20 // 500 MB safety limit
 )
 
-// installCLI downloads and installs the CLI binary from GitHub releases.
-// If the correct version is already installed, it returns the existing path.
+// installDir returns the directory the CLI is installed into. It must be
+// user-writable on every stack: we deliberately avoid /usr/local/bin, which is
+// root-owned and not writable on non-root stacks (e.g. the Linux 2026 stack
+// runs as the `ubuntu` user). The user's home directory always satisfies this,
+// regardless of which user the build runs as. The directory is added to PATH in
+// ExportOutputs so subsequent steps can invoke the CLI by name.
+func installDir() (string, error) {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return "", fmt.Errorf("resolve home directory: %w", err)
+	}
+
+	return filepath.Join(home, ".bitrise-build-cache", "bin"), nil
+}
+
+// installCLI downloads and installs the CLI binary from GitHub releases and
+// returns the absolute path to the installed binary. A binary of the correct
+// version already present in the install directory (e.g. from an earlier run on
+// the same VM) is reused without downloading.
 func installCLI(ctx context.Context, logger Logger) (string, error) {
-	binaryPath := filepath.Join(cliInstallDir, cliBinaryName)
+	dir, err := installDir()
+	if err != nil {
+		return "", fmt.Errorf("install CLI v%s: %w", cliVersion, err)
+	}
+
+	binaryPath := filepath.Join(dir, cliBinaryName)
 
 	if isCorrectVersion(binaryPath) {
-		logger.Infof("CLI %s already installed at %s", cliVersion, binaryPath)
+		logger.Infof("CLI v%s already installed at %s", cliVersion, binaryPath)
 
 		return binaryPath, nil
 	}
 
 	url := fmt.Sprintf(downloadURLTemplate, cliVersion, cliVersion, runtime.GOOS, runtime.GOARCH)
 	logger.Infof("Downloading CLI v%s from %s", cliVersion, url)
+
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		return "", fmt.Errorf("install CLI v%s: create install dir %s: %w", cliVersion, dir, err)
+	}
 
 	if err := downloadAndInstall(ctx, url, binaryPath); err != nil {
 		return "", fmt.Errorf("install CLI v%s: %w", cliVersion, err)
