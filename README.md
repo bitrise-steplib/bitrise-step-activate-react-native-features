@@ -31,6 +31,7 @@ You can also run this step directly with [Bitrise CLI](https://github.com/bitris
 | `xcode_cache_enabled` | Enables Bitrise Build Cache for Xcode. When enabled, activates Xcelerate and starts the Xcelerate proxy in the background. | required | `true` |
 | `gradle_cache_enabled` | Enables Bitrise Build Cache for Gradle. When enabled, activates Gradle cache with analytics and remote cache plugins. | required | `true` |
 | `verbose` | Enable logging additional information for troubleshooting | required | `false` |
+| `disable_prefix_mapping` | Disable injecting Clang prefix-mapping flags into xcodebuild for the Xcode build cache.  Prefix mapping canonicalizes rotating source/DerivedData paths so the compilation cache keys stay stable across builds (e.g. when source is checked out into a per-build temp dir). Disable only if it causes issues. | required | `false` |
 </details>
 
 <details>
