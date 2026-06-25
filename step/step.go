@@ -19,9 +19,10 @@ const (
 )
 
 type Input struct {
-	Verbose            bool `env:"verbose,required"`
-	XcodeCacheEnabled  bool `env:"xcode_cache_enabled,required"`
-	GradleCacheEnabled bool `env:"gradle_cache_enabled,required"`
+	Verbose              bool `env:"verbose,required"`
+	XcodeCacheEnabled    bool `env:"xcode_cache_enabled,required"`
+	GradleCacheEnabled   bool `env:"gradle_cache_enabled,required"`
+	DisablePrefixMapping bool `env:"disable_prefix_mapping"`
 }
 
 type Step struct {
@@ -86,6 +87,10 @@ func (s *Step) Run() error {
 
 	if s.input.Verbose {
 		args = append(args, "--debug")
+	}
+
+	if s.input.DisablePrefixMapping {
+		args = append(args, "--disable-prefix-mapping")
 	}
 
 	cmd := exec.Command(s.cliBinaryPath, args...) //nolint:gosec
