@@ -15,7 +15,7 @@ import (
 )
 
 const (
-	cliVersion    = "2.8.15"
+	cliVersion    = "2.8.16"
 	cliBinaryName = "bitrise-build-cache"
 	cliInstallDir = "/usr/local/bin"
 
