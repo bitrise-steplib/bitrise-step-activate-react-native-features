@@ -23,6 +23,8 @@ type Input struct {
 	XcodeCacheEnabled    bool `env:"xcode_cache_enabled,required"`
 	GradleCacheEnabled   bool `env:"gradle_cache_enabled,required"`
 	DisablePrefixMapping bool `env:"disable_prefix_mapping"`
+	NoSwiftCache         bool `env:"no_swift_cache"`
+	CacheSkipFlags       bool `env:"cache_skip_flags"`
 }
 
 type Step struct {
@@ -91,6 +93,14 @@ func (s *Step) Run() error {
 
 	if s.input.DisablePrefixMapping {
 		args = append(args, "--disable-prefix-mapping")
+	}
+
+	if s.input.NoSwiftCache {
+		args = append(args, "--no-swift-cache")
+	}
+
+	if s.input.CacheSkipFlags {
+		args = append(args, "--cache-skip-flags")
 	}
 
 	cmd := exec.Command(s.cliBinaryPath, args...) //nolint:gosec
