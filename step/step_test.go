@@ -107,6 +107,50 @@ func Test_Step(t *testing.T) {
 		assert.NotContains(t, string(args), "--xcode=false")
 	})
 
+	t.Run("Swift caching opted out — passes --no-swift-cache", func(t *testing.T) {
+		binaryPath, argsFile := fakeBinary(t, 0)
+		s := newTestStep(t, step.Input{
+			XcodeCacheEnabled: true,
+			NoSwiftCache:      true,
+		}, binaryPath)
+
+		err := s.Run()
+
+		require.NoError(t, err)
+		args, _ := os.ReadFile(argsFile)
+		assert.Contains(t, string(args), "--no-swift-cache")
+		assert.NotContains(t, string(args), "--cache-skip-flags")
+	})
+
+	t.Run("Cache flags skipped — passes --cache-skip-flags", func(t *testing.T) {
+		binaryPath, argsFile := fakeBinary(t, 0)
+		s := newTestStep(t, step.Input{
+			XcodeCacheEnabled: true,
+			CacheSkipFlags:    true,
+		}, binaryPath)
+
+		err := s.Run()
+
+		require.NoError(t, err)
+		args, _ := os.ReadFile(argsFile)
+		assert.Contains(t, string(args), "--cache-skip-flags")
+		assert.NotContains(t, string(args), "--no-swift-cache")
+	})
+
+	t.Run("Defaults — neither Swift opt-out nor skip-flags passed", func(t *testing.T) {
+		binaryPath, argsFile := fakeBinary(t, 0)
+		s := newTestStep(t, step.Input{
+			XcodeCacheEnabled: true,
+		}, binaryPath)
+
+		err := s.Run()
+
+		require.NoError(t, err)
+		args, _ := os.ReadFile(argsFile)
+		assert.NotContains(t, string(args), "--no-swift-cache")
+		assert.NotContains(t, string(args), "--cache-skip-flags")
+	})
+
 	t.Run("No features enabled — does not call CLI", func(t *testing.T) {
 		binaryPath, argsFile := fakeBinary(t, 0)
 		s := newTestStep(t, step.Input{}, binaryPath)
