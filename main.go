@@ -29,6 +29,8 @@ func main() {
 func run() exitcode.ExitCode {
 	logger, s := createStep()
 
+	logDeprecationNotice(logger)
+
 	if err := s.ProcessConfig(); err != nil {
 		logger.FormattedErrorf(err)
 		return exitcode.Failure
@@ -50,6 +52,18 @@ func run() exitcode.ExitCode {
 	}
 
 	return exitcode.Success
+}
+
+func logDeprecationNotice(logger stepLogger) {
+	logger.Warnf("============================================================")
+	logger.Warnf("DEPRECATION NOTICE")
+	logger.Warnf("The 0.x line of this Step is deprecated and will stop receiving")
+	logger.Warnf("Bitrise Build Cache CLI updates. Re-pin your workflow to @1:")
+	logger.Warnf("")
+	logger.Warnf("    - activate-build-cache-for-react-native@1: {}")
+	logger.Warnf("")
+	logger.Warnf("The 1.x line is functionally identical; only the major changed.")
+	logger.Warnf("============================================================")
 }
 
 func createStep() (stepLogger, step.Runner) {
