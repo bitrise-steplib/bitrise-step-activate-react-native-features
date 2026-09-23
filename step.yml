@@ -1,5 +1,5 @@
 title: Build Cache for React Native
-summary: Activates Bitrise Build Cache features for React Native projects
+summary: "[DEPRECATED — use @1] Activates Bitrise Build Cache features for React Native projects"
 description: |
   **⚠️ DEPRECATED — this is the 0.x line of the Step.**
 
